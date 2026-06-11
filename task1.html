@@ -277,13 +277,16 @@ let student = {};
 let setup   = {};
 let config  = {};
 let words   = [];
-let currentIdx = 0;
-let isPaused   = false;
+let currentIdx   = 0;
+let isPaused     = false;
 let selectedLang = null;
-let recordId   = '';
-let transOpen  = false;
-let exitTarget = 'task'; // 'task' or 'result'
-let geminiKey  = '';
+let recordId     = '';
+let transOpen    = false;
+let exitTarget   = 'task';
+let geminiKey    = '';
+let repeatCount  = 3;
+let currentRepeat = 0;
+let autoTimer    = null;
 
 // ---- Init ----
 (async function(){
@@ -359,10 +362,6 @@ let geminiKey  = '';
 async function api(p){ const q=new URLSearchParams(p).toString(); const r=await fetch(API+'?'+q); return r.json(); }
 function showLoading(t){ document.getElementById('overlayText').textContent=t||'Loading...'; document.getElementById('overlay').classList.add('show'); }
 function hideLoading(){ document.getElementById('overlay').classList.remove('show'); }
-
-let repeatCount  = 3;   // times to read each word
-let currentRepeat = 0; // current repeat number
-let autoTimer    = null;
 
 // ---- Show word ----
 function showWord(idx){
