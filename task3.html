@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Pair Drop 🎯</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+:root{
+  --g1:#1E5C1E;--g2:#2D7D2D;--g3:#4A9A3A;--g4:#6AAF45;--g5:#8DC63F;--g6:#C5E8A0;--g7:#EAF7D8;
+  --white:#FFFFFF;--text:#1A3A1A;--muted:#5A7A5A;--border:#C8E6B0;
+  --shadow:0 8px 32px rgba(45,109,45,0.15);--radius:16px;
+  --danger:#EF4444;--amber:#F59E0B;--amber-bg:#FEF3C7;--blue:#3B82F6;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;}
+html,body{height:100%;max-height:100vh;font-family:'Nunito',sans-serif;background:var(--g7);color:var(--text);overflow:hidden;position:fixed;width:100%;}
+.bg-blobs{position:fixed;inset:0;z-index:0;pointer-events:none;}
+.blob{position:absolute;border-radius:50%;filter:blur(60px);opacity:0.15;animation:float var(--dur) ease-in-out infinite alternate;}
+.blob1{width:300px;height:300px;background:var(--g3);top:-60px;right:-60px;--dur:7s;}
+.blob2{width:250px;height:250px;background:var(--g4);bottom:-50px;left:-50px;--dur:9s;}
+@keyframes float{from{transform:translate(0,0);}to{transform:translate(15px,20px);}}
+
+/* TOPBAR */
+.topbar{position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:10px 16px 6px;flex-shrink:0;}
+.logo-img{height:34px;object-fit:contain;}
+.session-code{background:var(--white);border:1.5px solid var(--border);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:800;color:var(--g1);letter-spacing:1px;font-family:monospace;}
+
+/* MAIN */
+.main{position:relative;z-index:1;height:calc(100vh - 54px);display:flex;flex-direction:column;padding:6px 12px 12px;overflow:hidden;}
+.info-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-shrink:0;}
+.badge-pill{background:linear-gradient(135deg,var(--g2),var(--g3));color:white;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:800;}
+.exit-btn{font-size:12px;font-weight:700;color:var(--muted);background:none;border:none;cursor:pointer;padding:4px 8px;}
+
+/* ============ PHASE 1: FLASHCARDS ============ */
+.flashcard-phase{flex:1;display:flex;flex-direction:column;min-height:0;}
+.fc-progress{text-align:center;font-size:13px;font-weight:800;color:var(--muted);margin-bottom:10px;}
+.fc-wrap{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;perspective:1200px;padding:10px 0;}
+.flashcard{width:100%;max-width:420px;height:100%;max-height:380px;position:relative;transform-style:preserve-3d;transition:transform 0.5s;cursor:pointer;}
+.flashcard.flipped{transform:rotateY(180deg);}
+.fc-face{position:absolute;inset:0;backface-visibility:hidden;border-radius:20px;border:2px solid var(--border);box-shadow:var(--shadow);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;}
+.fc-front{background:linear-gradient(135deg,var(--white),var(--g7));}
+.fc-back{background:linear-gradient(135deg,var(--g6),var(--g7));transform:rotateY(180deg);}
+.fc-label{font-size:11px;font-weight:800;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;}
+.fc-collocation{font-size:32px;font-weight:900;color:var(--g1);line-height:1.2;margin-bottom:8px;}
+.fc-target{font-size:14px;font-weight:700;color:var(--g3);background:var(--white);padding:4px 14px;border-radius:14px;border:1.5px solid var(--g4);margin-top:8px;}
+.fc-meaning{font-size:18px;font-weight:600;color:var(--text);line-height:1.5;}
+.fc-flip-hint{position:absolute;bottom:14px;left:0;right:0;font-size:12px;color:var(--muted);font-weight:700;}
+.fc-trans-area{margin-top:14px;width:100%;}
+.fc-trans-btn{padding:8px 16px;border:1.5px solid var(--border);border-radius:10px;background:var(--white);font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;}
+.fc-trans-btn.active{border-color:var(--g3);color:var(--g1);}
+.fc-lang-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:8px;}
+.fc-lang-btn{padding:6px 2px;border:1.5px solid var(--border);border-radius:8px;background:var(--white);font-size:11px;font-weight:700;color:var(--muted);cursor:pointer;}
+.fc-lang-btn.selected{border-color:var(--g3);background:var(--g6);color:var(--g1);}
+.fc-trans-text{margin-top:8px;font-size:15px;font-weight:700;color:var(--g1);}
+.fc-controls{display:flex;gap:10px;margin-top:12px;flex-shrink:0;}
+.fc-btn{flex:1;padding:13px;border:1.5px solid var(--border);border-radius:13px;background:var(--white);font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;color:var(--muted);cursor:pointer;}
+.fc-btn:disabled{opacity:0.4;}
+.fc-btn-main{background:linear-gradient(135deg,var(--g2),var(--g3));color:white;border-color:transparent;}
+
+/* ============ PHASE 2: GAME ============ */
+.game-phase{flex:1;display:none;flex-direction:column;min-height:0;}
+.game-phase.show{display:flex;}
+.game-hud{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-shrink:0;background:var(--white);border:1.5px solid var(--border);border-radius:12px;padding:8px 14px;}
+.lives{display:flex;gap:3px;}
+.life{font-size:18px;transition:all 0.3s;}
+.life.lost{opacity:0.25;filter:grayscale(1);}
+.game-timer{font-size:14px;font-weight:800;color:var(--g2);font-family:monospace;}
+.game-progress{font-size:13px;font-weight:800;color:var(--muted);}
+.target-display{text-align:center;margin-bottom:8px;flex-shrink:0;}
+.target-label{font-size:11px;font-weight:800;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
+.target-word{font-size:26px;font-weight:900;color:var(--g1);margin-top:2px;}
+.target-hint{font-size:12px;font-weight:600;color:var(--muted);margin-top:2px;}
+.game-area{flex:1;position:relative;background:var(--white);border:2px solid var(--border);border-radius:14px;overflow:hidden;min-height:0;box-shadow:inset 0 2px 12px rgba(0,0,0,0.04);}
+.falling-word{position:absolute;padding:8px 16px;border-radius:14px;font-size:15px;font-weight:800;cursor:pointer;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,0.15);transition:transform 0.1s;border:2px solid;}
+.falling-word.correct-style{background:#DBEAFE;border-color:var(--blue);color:#1D4ED8;}
+.falling-word.wrong-style{background:#FEE2E2;border-color:var(--danger);color:#991B1B;}
+.falling-word:active{transform:scale(0.92);}
+.falling-word.caught-correct{animation:catchGood 0.4s ease forwards;}
+.falling-word.caught-wrong{animation:catchBad 0.4s ease forwards;}
+@keyframes catchGood{0%{transform:scale(1);}50%{transform:scale(1.3);background:var(--g4);color:white;}100%{transform:scale(0);opacity:0;}}
+@keyframes catchBad{0%{transform:scale(1);}25%{transform:translateX(-8px);}75%{transform:translateX(8px);}100%{transform:scale(0.8);opacity:0;}}
+
+/* CONFETTI */
+.confetti-wrap{position:fixed;inset:0;z-index:200;pointer-events:none;}
+.confetti-piece{position:absolute;width:10px;height:10px;top:-10px;border-radius:2px;animation:confettiFall var(--dur) var(--delay) ease-in forwards;}
+@keyframes confettiFall{0%{transform:translateY(0) rotate(0deg);opacity:1;}100%{transform:translateY(100vh) rotate(720deg);opacity:0;}}
+
+/* REVIVE MODAL */
+.revive-modal{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:180;display:none;align-items:center;justify-content:center;padding:20px;}
+.revive-modal.show{display:flex;}
+.revive-box{background:var(--white);border-radius:20px;padding:24px;width:100%;max-width:400px;text-align:center;}
+.revive-emoji{font-size:48px;margin-bottom:8px;}
+.revive-title{font-size:22px;font-weight:900;color:var(--danger);margin-bottom:4px;}
+.revive-sub{font-size:14px;color:var(--muted);font-weight:600;margin-bottom:16px;}
+.revive-question{background:var(--g7);border-radius:12px;padding:14px;margin-bottom:14px;}
+.revive-q-target{font-size:13px;font-weight:700;color:var(--muted);margin-bottom:8px;}
+.revive-q-text{font-size:17px;font-weight:800;color:var(--g1);}
+.revive-options{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+.revive-opt{padding:12px;border:2px solid var(--border);border-radius:12px;background:var(--white);font-family:'Nunito',sans-serif;font-size:15px;font-weight:700;color:var(--text);cursor:pointer;transition:all 0.15s;}
+.revive-opt:hover{border-color:var(--g3);background:var(--g7);}
+.revive-opt.correct{border-color:var(--g4);background:var(--g6);}
+.revive-opt.wrong{border-color:var(--danger);background:#FEE2E2;}
+.revive-btns{display:flex;flex-direction:column;gap:8px;}
+.revive-btns button{padding:13px;border:none;border-radius:13px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;cursor:pointer;}
+.btn-wait{background:var(--amber-bg);color:#92400E;border:1.5px solid var(--amber);}
+.btn-revive{background:linear-gradient(135deg,var(--g2),var(--g3));color:white;}
+
+/* WAITING TIMER (when chose to wait) */
+.waiting-screen{position:fixed;inset:0;background:rgba(234,247,216,0.97);z-index:170;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;}
+.waiting-screen.show{display:flex;}
+.waiting-emoji{font-size:56px;margin-bottom:12px;animation:pulse 1.5s ease infinite;}
+@keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.1);}}
+.waiting-title{font-size:24px;font-weight:900;color:var(--g1);margin-bottom:8px;}
+.waiting-timer{font-size:40px;font-weight:900;color:var(--amber);font-family:monospace;margin-bottom:8px;}
+.waiting-sub{font-size:14px;color:var(--muted);font-weight:600;}
+
+/* RESULT */
+.result-overlay{position:fixed;inset:0;background:rgba(234,247,216,0.96);z-index:150;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;}
+.result-overlay.show{display:flex;}
+.result-emoji{font-size:60px;margin-bottom:10px;animation:bounce 0.6s ease infinite alternate;}
+@keyframes bounce{from{transform:translateY(0);}to{transform:translateY(-10px);}}
+.result-title{font-size:24px;font-weight:900;color:var(--g1);margin-bottom:4px;}
+.result-score{font-size:16px;font-weight:700;color:var(--muted);margin-bottom:16px;}
+.result-btns{display:flex;flex-direction:column;gap:8px;width:100%;max-width:300px;}
+.result-btns button{padding:13px;border:none;border-radius:13px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;cursor:pointer;}
+.btn-next{background:linear-gradient(135deg,var(--g2),var(--g3));color:white;}
+.btn-stop{background:var(--g7);color:var(--muted);border:1.5px solid var(--border);}
+.btn-redo{background:var(--amber-bg);color:#92400E;border:1.5px solid var(--amber);}
+
+/* OVERLAY / PIN */
+.overlay{position:fixed;inset:0;background:rgba(234,247,216,0.92);z-index:100;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;}
+.overlay.show{display:flex;}
+.spinner{width:44px;height:44px;border-radius:50%;border:4px solid var(--border);border-top-color:var(--g2);animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.overlay-text{font-size:15px;font-weight:800;color:var(--g1);}
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;display:none;align-items:center;justify-content:center;padding:24px;}
+.modal-backdrop.show{display:flex;}
+.modal{background:var(--white);border-radius:var(--radius);padding:22px;width:100%;max-width:340px;}
+.modal h3{font-size:17px;font-weight:900;color:var(--g1);margin-bottom:14px;}
+.modal input{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:11px;font-size:18px;font-weight:800;letter-spacing:4px;text-align:center;outline:none;margin-bottom:10px;font-family:'Nunito',sans-serif;}
+.modal-btns{display:flex;gap:8px;}
+.modal-btns button{flex:1;padding:11px;border:none;border-radius:11px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;cursor:pointer;}
+.modal-btns .confirm{background:linear-gradient(135deg,var(--g2),var(--g3));color:white;}
+.modal-btns .cancel{background:var(--g7);color:var(--muted);border:1.5px solid var(--border);}
+.modal .err{font-size:12px;color:var(--danger);margin-bottom:8px;display:none;}
+.modal .err.show{display:block;}
+</style>
+</head>
+<body>
+<div class="bg-blobs"><div class="blob blob1"></div><div class="blob blob2"></div></div>
+<div class="confetti-wrap" id="confettiWrap"></div>
+<div class="overlay" id="overlay"><div class="spinner"></div><div class="overlay-text" id="overlayText">Setting up Pair Drop...</div></div>
+
+<div class="modal-backdrop" id="exitModal">
+  <div class="modal">
+    <h3>🔐 Teacher PIN to exit</h3>
+    <div class="err" id="exitErr">Wrong PIN.</div>
+    <input type="password" id="exitPin" placeholder="••••••" maxlength="10" onkeydown="if(event.key==='Enter')confirmExit()">
+    <div class="modal-btns">
+      <button class="cancel" onclick="closeModal('exitModal')">Cancel</button>
+      <button class="confirm" onclick="confirmExit()">Exit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Revive modal -->
+<div class="revive-modal" id="reviveModal">
+  <div class="revive-box">
+    <div class="revive-emoji">💔</div>
+    <div class="revive-title">Out of lives!</div>
+    <div class="revive-sub">Answer correctly to revive, or wait 10 minutes.</div>
+    <div class="revive-question">
+      <div class="revive-q-target" id="reviveQTarget">Which word pairs with "green"?</div>
+      <div class="revive-q-text" id="reviveQText"></div>
+    </div>
+    <div class="revive-options" id="reviveOptions"></div>
+    <div class="revive-btns">
+      <button class="btn-wait" onclick="chooseWait()">⏳ Wait 10 minutes instead</button>
+    </div>
+  </div>
+</div>
+
+<!-- Waiting screen -->
+<div class="waiting-screen" id="waitingScreen">
+  <div class="waiting-emoji">⏳</div>
+  <div class="waiting-title">Taking a break...</div>
+  <div class="waiting-timer" id="waitingTimer">10:00</div>
+  <div class="waiting-sub">Come back when the timer ends.<br>Your progress is saved!</div>
+  <button class="btn-stop" style="margin-top:20px;padding:12px 24px;border-radius:13px;border:1.5px solid var(--border);background:var(--white);font-family:'Nunito',sans-serif;font-weight:800;cursor:pointer;" onclick="openModal('exitModal')">Exit for now 🔐</button>
+</div>
+
+<!-- Result -->
+<div class="result-overlay" id="resultOverlay">
+  <div class="result-emoji" id="resultEmoji">🎉</div>
+  <div class="result-title" id="resultTitle">Great job!</div>
+  <div class="result-score" id="resultScore"></div>
+  <div class="result-btns" id="resultBtns"></div>
+</div>
+
+<div class="topbar">
+  <img src="ZPS_header_75pc.jpg" alt="ZPS" class="logo-img" onerror="this.style.display='none'">
+  <div class="session-code" id="sessionCode">—</div>
+</div>
+
+<div class="main">
+  <div class="info-bar">
+    <div class="badge-pill">🎯 Pair Drop</div>
+    <button class="exit-btn" onclick="openModal('exitModal')">Exit 🔐</button>
+  </div>
+
+  <!-- PHASE 1: Flashcards -->
+  <div class="flashcard-phase" id="flashcardPhase">
+    <div class="fc-progress" id="fcProgress">Card 1 of 12 · 📝 Write down what you learn!</div>
+    <div class="fc-wrap">
+      <div class="flashcard" id="flashcard" onclick="flipCard()">
+        <div class="fc-face fc-front">
+          <div class="fc-label">Collocation</div>
+          <div class="fc-collocation" id="fcCollocation">—</div>
+          <div class="fc-target" id="fcTarget">—</div>
+          <div class="fc-flip-hint">👆 Tap to see the meaning</div>
+        </div>
+        <div class="fc-face fc-back">
+          <div class="fc-label">Meaning</div>
+          <div class="fc-meaning" id="fcMeaning">—</div>
+          <div class="fc-trans-area" id="fcTransArea" onclick="event.stopPropagation()">
+            <button class="fc-trans-btn" id="fcTransBtn" onclick="toggleFcTrans(event)">🌐 Show translation</button>
+            <div id="fcTransPanel" style="display:none">
+              <div class="fc-lang-grid" id="fcLangGrid"></div>
+              <div class="fc-trans-text" id="fcTransText" style="display:none">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="fc-controls">
+      <button class="fc-btn" id="fcPrev" onclick="prevCard()">⏮ Prev</button>
+      <button class="fc-btn fc-btn-main" id="fcNext" onclick="nextCard()">Next ⏭</button>
+    </div>
+  </div>
+
+  <!-- PHASE 2: Game -->
+  <div class="game-phase" id="gamePhase">
+    <div class="game-hud">
+      <div class="lives" id="lives"></div>
+      <div class="game-progress" id="gameProgress">0/12</div>
+      <div class="game-timer" id="gameTimer">10:00</div>
+    </div>
+    <div class="target-display">
+      <div class="target-label">Catch the word that pairs with</div>
+      <div class="target-word" id="targetWord">—</div>
+      <div class="target-hint" id="targetHint">Tap the correctly spelled match!</div>
+    </div>
+    <div class="game-area" id="gameArea"></div>
+  </div>
+</div>
+
+<script>
+const API='https://script.google.com/macros/s/AKfycbw76QSB-lv4pA-6s_m6vNk_oGEdeLqrsqkoBGu6j-XMulb-maiAGkqqhfqqEmGfcbn3Ow/exec';
+const LANG_LABELS={zh:'中文',ms:'Malay',id:'Indo',vi:'Việt',th:'ไทย',my:'မြန်မာ',km:'ខ្មែរ',bn:'বাংলা'};
+const LANG_KEY={zh:'translation_zh',ms:'translation_ms',id:'translation_id',vi:'translation_vi',th:'translation_th',my:'translation_my',km:'translation_km',bn:'translation_bn'};
+
+let config={},setup={},student={},recordId='';
+let allWords=[],gameWords=[];
+let numCollocations=12;
+let maxLives=5,lives=5;
+let currentCardIdx=0;
+let selectedLang=null;
+
+// Game state
+let currentTargetIdx=0;
+let score=0;
+let failedPairs=[];
+let gameTimer=null,gameSeconds=600;
+let fallTimer=null,fallingWords=[];
+let gameActive=false;
+let reviveTarget=null;
+let waitTimer=null,waitSeconds=600;
+
+async function api(p){const q=new URLSearchParams(p).toString();const r=await fetch(API+'?'+q);return r.json();}
+function showLoading(t){document.getElementById('overlayText').textContent=t||'...';document.getElementById('overlay').classList.add('show');}
+function hideLoading(){document.getElementById('overlay').classList.remove('show');}
+function openModal(id){document.getElementById(id).classList.add('show');}
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+// ============ AUDIO ============
+let audioCtx=null;
+function getCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
+function tone(freq,dur,type='square',vol=0.15,delay=0){try{const c=getCtx();const o=c.createOscillator();const g=c.createGain();o.connect(g);g.connect(c.destination);o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(0,c.currentTime+delay);g.gain.linearRampToValueAtTime(vol,c.currentTime+delay+0.01);g.gain.linearRampToValueAtTime(0,c.currentTime+delay+dur);o.start(c.currentTime+delay);o.stop(c.currentTime+delay+dur+0.05);}catch(e){}}
+function sndCorrect(){tone(523,0.1,'square',0.15,0);tone(659,0.1,'square',0.15,0.1);tone(784,0.15,'square',0.15,0.2);}
+function sndWrong(){tone(200,0.15,'sawtooth',0.12,0);tone(140,0.2,'sawtooth',0.12,0.15);}
+function sndWin(){[523,587,659,698,784,880,988,1047].forEach((f,i)=>tone(f,0.15,'square',0.15,i*0.1));}
+let tenseInterval=null;
+function startTenseMusic(){
+  const pat=[[330,0.12],[330,0.12],[392,0.12],[330,0.12],[294,0.12],[262,0.24]];
+  let i=0,t=0;
+  function next(){const[f,d]=pat[i%pat.length];tone(f,d,'triangle',0.05,0);t+=d;i++;tenseInterval=setTimeout(next,d*1000);}
+  next();
+}
+function stopTenseMusic(){if(tenseInterval){clearTimeout(tenseInterval);tenseInterval=null;}}
+
+// ============ INIT ============
+(async function(){
+  showLoading('Setting up Pair Drop...');
+  student=JSON.parse(sessionStorage.getItem('ds_student')||'{}');
+  setup=JSON.parse(sessionStorage.getItem('ds_setup')||'{}');
+  config=JSON.parse(sessionStorage.getItem('ds_config')||'{}');
+  recordId=sessionStorage.getItem('ds_record_id')||'';
+  document.getElementById('sessionCode').textContent=recordId||'—';
+  if(!student.name||!setup.series){window.location.href='index.html';return;}
+
+  numCollocations=parseInt(setup.task3_collocations)||12;
+  maxLives=parseInt(config.task3_lives)||5;
+  lives=maxLives;
+  gameSeconds=(parseInt(config.task3_timeout_minutes)||10)*60;
+
+  // Load all words (mode=all to get all collocation rows)
+  let cached=sessionStorage.getItem('ds_words_all');
+  if(cached){try{allWords=JSON.parse(cached);}catch(e){allWords=[];}}
+  if(!allWords.length){
+    try{
+      const res=await api({action:'getWords',series:setup.series,level:setup.level,
+        unit_from:setup.unit_from,unit_to:setup.unit_to,half:setup.half||'all',mode:'all'});
+      if(!res.success||!res.data.length){alert('No words found.');window.location.href='setup.html';return;}
+      allWords=res.data;
+      sessionStorage.setItem('ds_words_all',JSON.stringify(allWords));
+    }catch(e){alert('Connection error.');return;}
+  }
+
+  // Pick collocations (rows that have collocations)
+  const withColloc=allWords.filter(w=>w.collocations&&w.collocations.trim());
+  shuffle(withColloc);
+  gameWords=withColloc.slice(0,Math.min(numCollocations,withColloc.length));
+
+  // Save selected collocations to sheet for teacher
+  api({action:'updateRecord',record_id:recordId,
+    words_tested:gameWords.map(w=>w.word_id).join(','),status:'pair_drop_started'});
+
+  buildFcLangGrid();
+  showCard(0);
+  document.getElementById('fcProgress').textContent=`Card 1 of ${gameWords.length} · 📝 Write down what you learn!`;
+  hideLoading();
+  document.addEventListener('touchstart',()=>{try{getCtx().resume();}catch(e){}},{once:true});
+})();
+
+// ============ FLASHCARDS ============
+function buildFcLangGrid(){
+  const grid=document.getElementById('fcLangGrid');grid.innerHTML='';
+  Object.entries(LANG_LABELS).forEach(([code,label])=>{
+    const b=document.createElement('button');b.className='fc-lang-btn';b.textContent=label;b.dataset.code=code;
+    b.onclick=(e)=>{e.stopPropagation();selectFcLang(code,b);};
+    grid.appendChild(b);
+  });
+}
+
+function showCard(idx){
+  if(idx<0||idx>=gameWords.length)return;
+  currentCardIdx=idx;
+  const w=gameWords[idx];
+  document.getElementById('flashcard').classList.remove('flipped');
+  document.getElementById('fcCollocation').textContent=w.collocations;
+  document.getElementById('fcTarget').textContent='pairs with: '+w.word;
+  document.getElementById('fcMeaning').textContent=w.collocation_meaning||'—';
+  document.getElementById('fcProgress').textContent=`Card ${idx+1} of ${gameWords.length} · 📝 Write it down!`;
+  // Reset translation
+  selectedLang=null;
+  document.getElementById('fcTransPanel').style.display='none';
+  document.getElementById('fcTransBtn').classList.remove('active');
+  document.getElementById('fcTransBtn').textContent='🌐 Show translation';
+  document.getElementById('fcTransText').style.display='none';
+  document.querySelectorAll('.fc-lang-btn').forEach(b=>b.classList.remove('selected'));
+  // Nav buttons
+  document.getElementById('fcPrev').disabled=(idx===0);
+  document.getElementById('fcNext').textContent=(idx===gameWords.length-1)?'Start game 🎮':'Next ⏭';
+}
+
+function flipCard(){document.getElementById('flashcard').classList.toggle('flipped');}
+function prevCard(){if(currentCardIdx>0)showCard(currentCardIdx-1);}
+function nextCard(){
+  if(currentCardIdx<gameWords.length-1)showCard(currentCardIdx+1);
+  else startGame();
+}
+
+function toggleFcTrans(e){
+  e.stopPropagation();
+  const panel=document.getElementById('fcTransPanel');
+  const btn=document.getElementById('fcTransBtn');
+  const open=panel.style.display!=='none';
+  panel.style.display=open?'none':'block';
+  btn.classList.toggle('active',!open);
+  btn.textContent=open?'🌐 Show translation':'🌐 Hide translation';
+}
+
+function selectFcLang(code,el){
+  selectedLang=code;
+  document.querySelectorAll('.fc-lang-btn').forEach(b=>b.classList.remove('selected'));
+  el.classList.add('selected');
+  const w=gameWords[currentCardIdx];
+  const val=w[LANG_KEY[code]]||'(no translation)';
+  const t=document.getElementById('fcTransText');
+  t.textContent=val;t.style.display='block';
+}
+
+// ============ GAME ============
+function startGame(){
+  document.getElementById('flashcardPhase').style.display='none';
+  document.getElementById('gamePhase').classList.add('show');
+  buildLives();
+  currentTargetIdx=0;score=0;
+  startGameTimer();
+  startTenseMusic();
+  gameActive=true;
+  nextTarget();
+}
+
+function buildLives(){
+  const el=document.getElementById('lives');el.innerHTML='';
+  for(let i=0;i<maxLives;i++){
+    const h=document.createElement('span');h.className='life'+(i>=lives?' lost':'');h.textContent='❤️';el.appendChild(h);
+  }
+}
+
+function startGameTimer(){
+  updateTimerDisplay();
+  gameTimer=setInterval(()=>{
+    gameSeconds--;
+    updateTimerDisplay();
+    if(gameSeconds<=0){clearInterval(gameTimer);endGame(false,'Time up!');}
+  },1000);
+}
+function updateTimerDisplay(){
+  const m=Math.floor(gameSeconds/60),s=gameSeconds%60;
+  document.getElementById('gameTimer').textContent=`${m}:${String(s).padStart(2,'0')}`;
+}
+
+function nextTarget(){
+  if(currentTargetIdx>=gameWords.length){endGame(true);return;}
+  document.getElementById('gameProgress').textContent=`${currentTargetIdx}/${gameWords.length}`;
+  const target=gameWords[currentTargetIdx];
+  document.getElementById('targetWord').textContent=target.word;
+
+  // Build falling options: 1 correct + distractors
+  const correct=target.collocations.trim();
+  const options=[{text:correct,correct:true}];
+
+  // Misspelled version of correct
+  options.push({text:misspell(correct),correct:false});
+
+  // Other collocations as distractors
+  const others=gameWords.filter((w,i)=>i!==currentTargetIdx&&w.collocations);
+  shuffle(others);
+  others.slice(0,2).forEach(w=>options.push({text:w.collocations.trim(),correct:false}));
+
+  shuffle(options);
+  dropWords(options);
+}
+
+function misspell(word){
+  const chars=word.split('');
+  // Swap two adjacent letters or change a vowel
+  const letters=chars.filter(c=>/[a-z]/i.test(c));
+  if(letters.length<3)return word+'x';
+  const r=Math.random();
+  if(r<0.5){
+    // Swap two adjacent letters
+    const idx=Math.floor(Math.random()*(chars.length-1));
+    if(/[a-z]/i.test(chars[idx])&&/[a-z]/i.test(chars[idx+1])){
+      [chars[idx],chars[idx+1]]=[chars[idx+1],chars[idx]];
+    }
+  } else {
+    // Replace a vowel
+    const vowels='aeiou';
+    for(let i=0;i<chars.length;i++){
+      if(vowels.includes(chars[i].toLowerCase())){
+        const others=vowels.replace(chars[i].toLowerCase(),'');
+        chars[i]=others[Math.floor(Math.random()*others.length)];
+        break;
+      }
+    }
+  }
+  const result=chars.join('');
+  return result===word?word+'e':result;
+}
+
+function dropWords(options){
+  const area=document.getElementById('gameArea');
+  // Clear old
+  area.querySelectorAll('.falling-word').forEach(el=>el.remove());
+  fallingWords=[];
+  if(fallTimer)cancelAnimationFrame(fallTimer);
+
+  const areaW=area.clientWidth;
+  const areaH=area.clientHeight;
+
+  // Stagger drop positions
+  const lanes=options.length;
+  options.forEach((opt,i)=>{
+    const el=document.createElement('div');
+    el.className='falling-word '+(opt.correct?'correct-style':'wrong-style');
+    el.textContent=opt.text;
+    el.style.top='-50px';
+    area.appendChild(el);
+    const elW=el.offsetWidth;
+    const maxX=Math.max(0,areaW-elW);
+    const x=Math.min(maxX,(areaW/(lanes+1))*(i+1)-elW/2+(Math.random()*40-20));
+    el.style.left=Math.max(4,Math.min(maxX-4,x))+'px';
+    const fw={el,opt,y:-50-(i*80),x,speed:0.6+Math.random()*0.4,caught:false};
+    el.onclick=()=>catchWord(fw);
+    fallingWords.push(fw);
+  });
+
+  animateFall();
+}
+
+function animateFall(){
+  const area=document.getElementById('gameArea');
+  const areaH=area.clientHeight;
+  let allGone=true;
+
+  fallingWords.forEach(fw=>{
+    if(fw.caught)return;
+    allGone=false;
+    fw.y+=fw.speed*2.2;
+    fw.el.style.top=fw.y+'px';
+    if(fw.y>areaH){
+      // Fell off bottom
+      fw.caught=true;
+      fw.el.remove();
+      if(fw.opt.correct){
+        // Missed the correct one — lose life
+        loseLife();
+        // Move to next target (missed it)
+        setTimeout(()=>{currentTargetIdx++;if(gameActive)nextTarget();},300);
+      }
+    }
+  });
+
+  // Check if correct word still falling
+  const correctStillFalling=fallingWords.some(fw=>!fw.caught&&fw.opt.correct);
+  if(!correctStillFalling&&fallingWords.some(fw=>fw.opt.correct&&fw.caught)){
+    // Correct was caught, handled in catchWord
+  }
+
+  if(gameActive&&fallingWords.some(fw=>!fw.caught)){
+    fallTimer=requestAnimationFrame(animateFall);
+  }
+}
+
+function catchWord(fw){
+  if(fw.caught||!gameActive)return;
+  fw.caught=true;
+
+  if(fw.opt.correct){
+    // Correct!
+    fw.el.classList.add('caught-correct');
+    sndCorrect();
+    spawnConfetti();
+    score++;
+    setTimeout(()=>{
+      currentTargetIdx++;
+      if(gameActive)nextTarget();
+    },400);
+  } else {
+    // Wrong — lose life
+    fw.el.classList.add('caught-wrong');
+    sndWrong();
+    loseLife();
+    // Record failed pair
+    const target=gameWords[currentTargetIdx];
+    if(!failedPairs.find(f=>f.word_id===target.word_id))failedPairs.push(target);
+    setTimeout(()=>fw.el.remove(),400);
+  }
+}
+
+function loseLife(){
+  lives--;
+  buildLives();
+  if(lives<=0){
+    gameActive=false;
+    stopTenseMusic();
+    if(fallTimer)cancelAnimationFrame(fallTimer);
+    clearInterval(gameTimer);
+    showReviveModal();
+  }
+}
+
+function spawnConfetti(){
+  const wrap=document.getElementById('confettiWrap');
+  const colors=['#4A9A3A','#6AAF45','#F59E0B','#3B82F6','#EC4899'];
+  for(let i=0;i<25;i++){
+    const p=document.createElement('div');p.className='confetti-piece';
+    p.style.cssText=`left:${Math.random()*100}%;background:${colors[Math.floor(Math.random()*colors.length)]};
+      width:${5+Math.random()*6}px;height:${5+Math.random()*6}px;
+      --dur:${1.2+Math.random()*1.5}s;--delay:0s;`;
+    wrap.appendChild(p);
+    setTimeout(()=>p.remove(),2800);
+  }
+}
+
+// ============ REVIVE ============
+function showReviveModal(){
+  const target=failedPairs.length?failedPairs[failedPairs.length-1]:gameWords[currentTargetIdx];
+  reviveTarget=target;
+  document.getElementById('reviveQTarget').textContent=`Which word pairs with "${target.word}"?`;
+  document.getElementById('reviveQText').textContent=target.collocation_meaning||'Choose the correct collocation';
+
+  // Build options: correct + 3 distractors
+  const correct=target.collocations.trim();
+  const opts=[correct];
+  const others=gameWords.filter(w=>w.word_id!==target.word_id&&w.collocations);
+  shuffle(others);
+  others.slice(0,2).forEach(w=>opts.push(w.collocations.trim()));
+  opts.push(misspell(correct));
+  shuffle(opts);
+
+  const cont=document.getElementById('reviveOptions');cont.innerHTML='';
+  opts.forEach(o=>{
+    const b=document.createElement('button');b.className='revive-opt';b.textContent=o;
+    b.onclick=()=>answerRevive(o===correct,b);
+    cont.appendChild(b);
+  });
+
+  openModal('reviveModal');
+}
+
+function answerRevive(correct,el){
+  document.querySelectorAll('.revive-opt').forEach(b=>b.style.pointerEvents='none');
+  if(correct){
+    el.classList.add('correct');
+    sndCorrect();
+    setTimeout(()=>{
+      closeModal('reviveModal');
+      // Revive — give back lives, continue from failed question
+      lives=maxLives;
+      buildLives();
+      gameActive=true;
+      startGameTimer();
+      startTenseMusic();
+      nextTarget(); // continues from currentTargetIdx (the failed one)
+    },800);
+  } else {
+    el.classList.add('wrong');
+    sndWrong();
+    // Show correct answer
+    document.querySelectorAll('.revive-opt').forEach(b=>{
+      if(b.textContent===reviveTarget.collocations.trim())b.classList.add('correct');
+    });
+    setTimeout(()=>{
+      closeModal('reviveModal');
+      chooseWait();
+    },1500);
+  }
+}
+
+function chooseWait(){
+  closeModal('reviveModal');
+  // Save wait start time (persists even if page closed)
+  const waitEnd=Date.now()+waitSeconds*1000;
+  sessionStorage.setItem('ds_t3_wait_end',waitEnd);
+  api({action:'updateRecord',record_id:recordId,status:'pair_drop_waiting',
+    score:score+'/'+gameWords.length});
+  document.getElementById('waitingScreen').classList.add('show');
+  startWaitTimer(waitEnd);
+}
+
+function startWaitTimer(waitEnd){
+  function update(){
+    const remain=Math.max(0,Math.ceil((waitEnd-Date.now())/1000));
+    const m=Math.floor(remain/60),s=remain%60;
+    document.getElementById('waitingTimer').textContent=`${m}:${String(s).padStart(2,'0')}`;
+    if(remain<=0){
+      clearInterval(waitTimer);
+      sessionStorage.removeItem('ds_t3_wait_end');
+      // Revive after wait — restart from beginning
+      document.getElementById('waitingScreen').classList.remove('show');
+      lives=maxLives;buildLives();
+      currentTargetIdx=0;score=0;
+      gameSeconds=(parseInt(config.task3_timeout_minutes)||10)*60;
+      gameActive=true;
+      startGameTimer();startTenseMusic();
+      nextTarget();
+    }
+  }
+  update();
+  waitTimer=setInterval(update,1000);
+}
+
+// ============ END ============
+function endGame(passed,reason){
+  gameActive=false;
+  stopTenseMusic();
+  if(fallTimer)cancelAnimationFrame(fallTimer);
+  clearInterval(gameTimer);
+
+  api({action:'updateRecord',record_id:recordId,
+    score:score+'/'+gameWords.length,
+    wrong_words:failedPairs.map(w=>w.word_id).join(','),
+    status:passed?'pair_drop_done':'pair_drop_ended'});
+
+  const ov=document.getElementById('resultOverlay');ov.classList.add('show');
+  if(passed){
+    sndWin();bigConfetti();
+    document.getElementById('resultEmoji').textContent='🏆';
+    document.getElementById('resultTitle').textContent='You did it! Amazing!';
+  } else {
+    document.getElementById('resultEmoji').textContent='⏰';
+    document.getElementById('resultTitle').textContent=reason||'Game over';
+  }
+  document.getElementById('resultScore').textContent=`Score: ${score}/${gameWords.length}`;
+
+  const btns=document.getElementById('resultBtns');btns.innerHTML='';
+  if(passed){
+    const next=document.createElement('button');next.className='btn-next';next.textContent='Next task ➜';next.onclick=goNext;btns.appendChild(next);
+  } else {
+    const redo=document.createElement('button');redo.className='btn-redo';redo.textContent='Try again 🔄';
+    redo.onclick=()=>location.reload();btns.appendChild(redo);
+  }
+  const stop=document.createElement('button');stop.className='btn-stop';stop.textContent='Stop here';stop.onclick=()=>openModal('exitModal');btns.appendChild(stop);
+}
+
+function bigConfetti(){
+  const wrap=document.getElementById('confettiWrap');
+  const colors=['#4A9A3A','#6AAF45','#F59E0B','#3B82F6','#EC4899','#8B5CF6'];
+  for(let i=0;i<60;i++){
+    const p=document.createElement('div');p.className='confetti-piece';
+    p.style.cssText=`left:${Math.random()*100}%;background:${colors[Math.floor(Math.random()*colors.length)]};
+      width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;border-radius:${Math.random()>0.5?'50%':'2px'};
+      --dur:${1.5+Math.random()*2}s;--delay:${Math.random()*1.5}s;`;
+    wrap.appendChild(p);
+  }
+  setTimeout(()=>wrap.innerHTML='',5000);
+}
+
+function goNext(){
+  const taskDefs=[null,null,null,{page:'task4.html'},{page:'task5.html'}];
+  const order=setup.task_order||[0,1,2,3,4];
+  const enabled=setup.task_enabled||[true,true,true,true,true];
+  const t3pos=order.indexOf(2);
+  for(let i=t3pos+1;i<order.length;i++){
+    const idx=order[i];
+    if(enabled[idx]&&taskDefs[idx]?.page){window.location.href=taskDefs[idx].page;return;}
+  }
+  window.location.href='index.html';
+}
+
+async function confirmExit(){
+  const pin=document.getElementById('exitPin').value.trim();if(!pin)return;
+  const res=await api({action:'verifyPin',pin});
+  if(res.verified){stopTenseMusic();await api({action:'updateRecord',record_id:recordId,status:'paused'});window.location.href='index.html';}
+  else{document.getElementById('exitErr').classList.add('show');document.getElementById('exitPin').value='';}
+}
+
+history.pushState(null,'',location.href);
+window.addEventListener('popstate',()=>history.pushState(null,'',location.href));
+</script>
+</body>
+</html>

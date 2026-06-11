@@ -217,6 +217,18 @@ html,body{min-height:100vh;font-family:'Nunito',sans-serif;background:var(--g7);
         </div>
 
         <div class="field">
+          <label>Pair Drop — number of collocations</label>
+          <select id="numCollocations">
+            <option value="6">6 collocations</option>
+            <option value="8">8 collocations</option>
+            <option value="10">10 collocations</option>
+            <option value="12" selected>12 collocations (default)</option>
+            <option value="15">15 collocations</option>
+            <option value="20">20 collocations</option>
+          </select>
+        </div>
+
+        <div class="field">
           <label>Show definition during Spell Storm?</label>
           <select id="showDefinition">
             <option value="yes">Yes — show EL definition</option>
@@ -560,6 +572,7 @@ async function startSession(){
   const showDef = document.getElementById('showDefinition').value;
   const order   = document.getElementById('wordOrder').value;
   const repeat  = parseInt(document.getElementById('repeatCount').value) || 3;
+  const task3Colloc = parseInt(document.getElementById('numCollocations').value) || 12;
 
   // Number of words
   const numSel = document.getElementById('numWords').value;
@@ -584,6 +597,7 @@ async function startSession(){
     show_definition: showDef,
     word_order:      order,
     repeat_count:    repeat,
+    task3_collocations: task3Colloc,
     num_words:       numWords,
     task_enabled:    taskEnabled,
     task_order:      taskOrder,
