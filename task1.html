@@ -332,6 +332,7 @@ let autoTimer    = null;
       return;
     }
     words = res.data;
+    sessionStorage.setItem('ds_words', JSON.stringify(words));
     if(setup.word_order === 'random') shuffle(words);
 
     // Apply num_words limit

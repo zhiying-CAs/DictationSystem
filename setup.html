@@ -298,14 +298,25 @@ function clearMsg(){ document.getElementById('msgMain').className='msg'; }
 async function loadAll(){
   showLoading('Loading word lists...');
   try {
-    const [cfgRes, slRes] = await Promise.all([
-      api({action:'getConfig'}),
-      api({action:'getSeriesLevels'})
-    ]);
+    // Use cached config if available (speeds up reload)
+    const cachedConfig = sessionStorage.getItem('ds_config');
+    const cachedSL     = sessionStorage.getItem('ds_series_levels');
+
+    let cfgRes, slRes;
+    if(cachedConfig && cachedSL){
+      cfgRes = { success:true, data:JSON.parse(cachedConfig) };
+      slRes  = { success:true, data:JSON.parse(cachedSL) };
+    } else {
+      [cfgRes, slRes] = await Promise.all([
+        api({action:'getConfig'}),
+        api({action:'getSeriesLevels'})
+      ]);
+      if(cfgRes.success)  sessionStorage.setItem('ds_config', JSON.stringify(cfgRes.data));
+      if(slRes.success)   sessionStorage.setItem('ds_series_levels', JSON.stringify(slRes.data));
+    }
 
     if(cfgRes.success){
       config = cfgRes.data;
-      // Apply config defaults
       if(config.task_enabled){
         const en = config.task_enabled.split(',');
         taskEnabled = en.map(v=>v.trim()==='1');
