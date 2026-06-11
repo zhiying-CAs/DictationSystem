@@ -13,7 +13,7 @@
   --danger:#EF4444;--amber:#F59E0B;--amber-bg:#FEF3C7;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;}
-html,body{height:100%;font-family:'Nunito',sans-serif;background:var(--g7);color:var(--text);overflow:hidden;}
+html,body{height:100%;max-height:100vh;font-family:'Nunito',sans-serif;background:var(--g7);color:var(--text);overflow:hidden;position:fixed;width:100%;}
 
 /* ANIMATED BG */
 .bg-blobs{position:fixed;inset:0;z-index:0;pointer-events:none;}
@@ -40,7 +40,7 @@ html,body{height:100%;font-family:'Nunito',sans-serif;background:var(--g7);color
 .session-code{background:var(--white);border:1.5px solid var(--border);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:800;color:var(--g1);letter-spacing:1px;font-family:monospace;}
 
 /* MAIN */
-.main{position:relative;z-index:1;height:calc(100vh - 54px);display:flex;flex-direction:column;padding:6px 12px 12px;overflow:hidden;}
+.main{position:relative;z-index:1;height:calc(100vh - 54px);display:flex;flex-direction:column;padding:6px 12px 8px;overflow:hidden;}
 
 /* INFO BAR */
 .info-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;flex-shrink:0;}
@@ -62,12 +62,10 @@ html,body{height:100%;font-family:'Nunito',sans-serif;background:var(--g7);color
 .puzzle-label{text-align:center;font-size:12px;font-weight:800;color:var(--muted);margin-bottom:5px;letter-spacing:0.5px;flex-shrink:0;}
 
 /* LANG BAR */
-.lang-bar{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin-bottom:5px;flex-shrink:0;}
-.lang-chip{padding:3px 9px;border-radius:12px;border:1.5px solid var(--border);background:var(--white);font-size:11px;font-weight:700;color:var(--muted);cursor:pointer;}
-.lang-chip.active{border-color:var(--g3);background:var(--g6);color:var(--g1);}
+
 
 /* WORD SEARCH */
-.ws-container{flex:1;display:flex;flex-direction:column;min-height:0;}
+.ws-container{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;}
 .ws-grid-wrap{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;}
 .ws-grid{display:inline-grid;gap:2px;border:2px solid var(--border);border-radius:12px;background:var(--white);padding:6px;box-shadow:var(--shadow);}
 .ws-cell{display:flex;align-items:center;justify-content:center;border-radius:4px;font-weight:800;cursor:pointer;border:1.5px solid transparent;transition:all 0.1s;text-transform:uppercase;}
@@ -76,8 +74,8 @@ html,body{height:100%;font-family:'Nunito',sans-serif;background:var(--g7);color
 .ws-cell.gifted{background:#DBEAFE;border-color:#3B82F6;color:#1D4ED8;}
 .ws-cell.hint-flash{background:#FEF9C3;border-color:#EAB308;animation:hintFlash 0.6s ease 3;}
 @keyframes hintFlash{0%,100%{background:#FEF9C3;}50%{background:#FDE047;}}
-.ws-wordlist{flex-shrink:0;margin-top:6px;display:flex;flex-wrap:wrap;gap:5px;justify-content:center;max-height:80px;overflow-y:auto;}
-.ws-word-chip{padding:4px 10px;border-radius:16px;border:1.5px solid var(--border);background:var(--white);font-size:11px;font-weight:700;color:var(--muted);}
+.ws-wordlist{flex-shrink:0;margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-height:100px;overflow-y:auto;padding:2px 0;}
+.ws-word-chip{padding:5px 12px;border-radius:16px;border:1.5px solid var(--border);background:var(--white);font-size:13px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:0.5px;}
 .ws-word-chip.found{background:var(--g6);border-color:var(--g4);color:var(--g1);text-decoration:line-through;}
 .ws-word-chip.gifted{background:#DBEAFE;border-color:#3B82F6;color:#1D4ED8;}
 
@@ -112,7 +110,7 @@ html,body{height:100%;font-family:'Nunito',sans-serif;background:var(--g7);color
 .cw-clue.solved{border-color:var(--g4);background:var(--g7);opacity:0.7;}
 .cw-clue.gifted{border-color:#3B82F6;background:#DBEAFE;opacity:0.7;}
 .cw-clue-num{font-size:12px;font-weight:900;color:var(--g2);flex-shrink:0;min-width:22px;}
-.cw-clue-text{font-size:11px;font-weight:600;color:var(--text);line-height:1.4;}
+.cw-clue-text{font-size:12px;font-weight:600;color:var(--text);line-height:1.5;white-space:normal;word-break:break-word;}
 .cw-clue-lang{font-size:10px;color:var(--muted);margin-top:1px;}
 
 /* RESULT */
@@ -198,7 +196,6 @@ html,body{height:100%;font-family:'Nunito',sans-serif;background:var(--g7);color
     <div class="hint-dots" id="hintDots"></div>
     <button class="hint-btn" id="hintBtn" onclick="useHint()">Hint!</button>
   </div>
-  <div class="lang-bar" id="langBar"></div>
   <div class="puzzle-label" id="puzzleLabel">—</div>
   <div id="puzzleArea" style="flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;"></div>
 </div>
@@ -325,7 +322,6 @@ function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random
   document.getElementById('puzzleLabel').textContent=
     puzzleType==='wordsearch'?'🔍 Word Search — Find the hidden words!':'✏️ Crossword — Fill in the answers!';
 
-  buildLangBar();
   buildHintDots();
   updateScore();
   startBgMusic();
@@ -584,7 +580,7 @@ function renderWordSearch(){
     const isGifted=w.word_id===giftedWordId;
     const isFound=foundWords.has(clean);
     chip.className='ws-word-chip'+(isGifted?' gifted':isFound?' found':'');
-    chip.textContent=w.definition_en?(w.definition_en.length>45?w.definition_en.slice(0,45)+'…':w.definition_en):w.word;
+    chip.textContent=w.word;
     chipWrap.appendChild(chip);
   });
   area.appendChild(chipWrap);
@@ -807,7 +803,7 @@ function updateCWBanner(){
   const lang=document.getElementById('cwBannerLang');
   if(num) num.textContent=cwActive.num+(cwActive.dir==='H'?' →':' ↓');
   if(def) def.textContent=cwActive.word.definition_en||cwActive.word.word;
-  if(lang) lang.textContent=(selectedLang&&cwActive.word[LANG_KEY[selectedLang]])?cwActive.word[LANG_KEY[selectedLang]]:'';
+  if(lang) lang.textContent=cwActive.word.pos||'';
 }
 
 function onCWCellClick(r,c){
@@ -942,11 +938,8 @@ function renderCrosswordClues(container){
     const num=document.createElement('div'); num.className='cw-clue-num';
     num.textContent=cl.num+(cl.dir==='H'?' →':' ↓');
     const txt=document.createElement('div'); txt.className='cw-clue-text';
-    txt.textContent=(cl.gifted?'🎁 ':cl.solved?'✅ ':'')+( cl.word.definition_en||cl.word.word);
-    if(selectedLang&&cl.word[LANG_KEY[selectedLang]]){
-      const lang=document.createElement('div'); lang.className='cw-clue-lang';
-      lang.textContent=cl.word[LANG_KEY[selectedLang]]; txt.appendChild(lang);
-    }
+    txt.textContent=(cl.gifted?'🎁 ':cl.solved?'✅ ':'')+( cl.word.definition_en ? cl.word.definition_en+' ('+cl.word.pos+')' : cl.word.word);
+
     div.appendChild(num); div.appendChild(txt); side.appendChild(div);
   });
 }
@@ -1126,7 +1119,7 @@ function renderWordSearch(){
     const isGifted=w.word_id===giftedWordId;
     const isFound=foundWords.has(clean);
     chip.className='ws-word-chip'+(isGifted?' gifted':isFound?' found':'');
-    chip.textContent=w.definition_en?(w.definition_en.length>45?w.definition_en.slice(0,45)+'…':w.definition_en):w.word;
+    chip.textContent=w.word;
     chipWrap.appendChild(chip);
   });
   area.appendChild(chipWrap);
