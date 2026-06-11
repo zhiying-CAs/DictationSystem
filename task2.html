@@ -14,11 +14,25 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;}
 html,body{height:100%;font-family:'Nunito',sans-serif;background:var(--g7);color:var(--text);overflow:hidden;}
-.bg-blobs{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+
+/* ANIMATED BG */
+.bg-blobs{position:fixed;inset:0;z-index:0;pointer-events:none;}
 .blob{position:absolute;border-radius:50%;filter:blur(60px);opacity:0.15;animation:float var(--dur) ease-in-out infinite alternate;}
 .blob1{width:300px;height:300px;background:var(--g3);top:-60px;right:-60px;--dur:7s;}
 .blob2{width:250px;height:250px;background:var(--g4);bottom:-50px;left:-50px;--dur:9s;}
 @keyframes float{from{transform:translate(0,0);}to{transform:translate(15px,20px);}}
+
+/* IDLE SPARKLES */
+.idle-effect{position:fixed;inset:0;z-index:50;pointer-events:none;display:none;}
+.idle-effect.show{display:block;}
+.sparkle{position:absolute;font-size:28px;animation:sparkleAnim 1.5s ease-out forwards;}
+@keyframes sparkleAnim{0%{opacity:1;transform:translateY(0) scale(1);}100%{opacity:0;transform:translateY(-80px) scale(1.5);}}
+.idle-msg{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:51;
+  background:rgba(255,255,255,0.95);border:2px solid var(--amber);border-radius:20px;
+  padding:16px 24px;text-align:center;font-size:16px;font-weight:800;color:#92400E;
+  box-shadow:0 8px 32px rgba(0,0,0,0.15);display:none;animation:blink 1s ease-in-out infinite;}
+.idle-msg.show{display:block;}
+@keyframes blink{0%,100%{transform:translate(-50%,-50%) scale(1);}50%{transform:translate(-50%,-50%) scale(1.04);}}
 
 /* TOPBAR */
 .topbar{position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:10px 16px 6px;flex-shrink:0;}
@@ -28,79 +42,100 @@ html,body{height:100%;font-family:'Nunito',sans-serif;background:var(--g7);color
 /* MAIN */
 .main{position:relative;z-index:1;height:calc(100vh - 54px);display:flex;flex-direction:column;padding:6px 12px 12px;overflow:hidden;}
 
-/* INFO */
-.info-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-shrink:0;}
+/* INFO BAR */
+.info-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;flex-shrink:0;}
 .badge-pill{background:linear-gradient(135deg,var(--g2),var(--g3));color:white;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:800;}
 .score-display{font-size:13px;font-weight:800;color:var(--g2);}
 .exit-btn{font-size:12px;font-weight:700;color:var(--muted);background:none;border:none;cursor:pointer;padding:4px 8px;}
 
-/* PUZZLE TYPE LABEL */
-.puzzle-label{text-align:center;font-size:13px;font-weight:800;color:var(--muted);margin-bottom:6px;letter-spacing:0.5px;flex-shrink:0;}
+/* HINT BAR */
+.hint-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;flex-shrink:0;background:var(--white);border:1.5px solid var(--border);border-radius:12px;padding:6px 12px;}
+.hint-dots{display:flex;gap:5px;align-items:center;}
+.hint-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--amber);background:var(--amber-bg);transition:all 0.3s;}
+.hint-dot.used{background:#E5E7EB;border-color:#D1D5DB;}
+.hint-btn{padding:5px 14px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--amber),#F97316);color:white;font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;cursor:pointer;transition:all 0.18s;}
+.hint-btn:hover{transform:scale(1.05);}
+.hint-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
+.hint-label{font-size:12px;font-weight:700;color:var(--muted);}
 
-/* WORD SEARCH GRID */
-.ws-container{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;}
-.ws-grid-wrap{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;overflow:hidden;}
-.ws-grid{display:inline-grid;gap:2px;border:2px solid var(--border);border-radius:12px;background:var(--white);padding:8px;box-shadow:var(--shadow);}
-.ws-cell{display:flex;align-items:center;justify-content:center;border-radius:4px;font-size:13px;font-weight:800;color:var(--text);cursor:pointer;border:1px solid transparent;transition:all 0.12s;text-transform:uppercase;}
+/* PUZZLE TYPE LABEL */
+.puzzle-label{text-align:center;font-size:12px;font-weight:800;color:var(--muted);margin-bottom:5px;letter-spacing:0.5px;flex-shrink:0;}
+
+/* LANG BAR */
+.lang-bar{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin-bottom:5px;flex-shrink:0;}
+.lang-chip{padding:3px 9px;border-radius:12px;border:1.5px solid var(--border);background:var(--white);font-size:11px;font-weight:700;color:var(--muted);cursor:pointer;}
+.lang-chip.active{border-color:var(--g3);background:var(--g6);color:var(--g1);}
+
+/* WORD SEARCH */
+.ws-container{flex:1;display:flex;flex-direction:column;min-height:0;}
+.ws-grid-wrap{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;}
+.ws-grid{display:inline-grid;gap:2px;border:2px solid var(--border);border-radius:12px;background:var(--white);padding:6px;box-shadow:var(--shadow);}
+.ws-cell{display:flex;align-items:center;justify-content:center;border-radius:4px;font-weight:800;cursor:pointer;border:1.5px solid transparent;transition:all 0.1s;text-transform:uppercase;}
 .ws-cell.selected{background:var(--amber-bg);border-color:var(--amber);color:#92400E;}
 .ws-cell.found{background:var(--g6);border-color:var(--g4);color:var(--g1);}
-.ws-cell.highlight{background:#DBEAFE;border-color:#3B82F6;}
-
-/* WORD LIST (for word search) */
-.ws-wordlist{flex-shrink:0;margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-height:90px;overflow-y:auto;}
-.ws-word-chip{padding:5px 10px;border-radius:20px;border:1.5px solid var(--border);background:var(--white);font-size:12px;font-weight:700;color:var(--muted);}
+.ws-cell.gifted{background:#DBEAFE;border-color:#3B82F6;color:#1D4ED8;}
+.ws-cell.hint-flash{background:#FEF9C3;border-color:#EAB308;animation:hintFlash 0.6s ease 3;}
+@keyframes hintFlash{0%,100%{background:#FEF9C3;}50%{background:#FDE047;}}
+.ws-wordlist{flex-shrink:0;margin-top:6px;display:flex;flex-wrap:wrap;gap:5px;justify-content:center;max-height:80px;overflow-y:auto;}
+.ws-word-chip{padding:4px 10px;border-radius:16px;border:1.5px solid var(--border);background:var(--white);font-size:11px;font-weight:700;color:var(--muted);}
 .ws-word-chip.found{background:var(--g6);border-color:var(--g4);color:var(--g1);text-decoration:line-through;}
+.ws-word-chip.gifted{background:#DBEAFE;border-color:#3B82F6;color:#1D4ED8;}
 
 /* CROSSWORD */
-.cw-container{flex:1;display:flex;gap:10px;min-height:0;overflow:hidden;}
-.cw-grid-side{flex:0 0 auto;display:flex;align-items:flex-start;justify-content:center;overflow:auto;}
+.cw-container{flex:1;display:flex;gap:8px;min-height:0;}
+.cw-grid-side{flex:0 0 auto;display:flex;align-items:flex-start;overflow:auto;}
 .cw-grid{display:inline-grid;gap:2px;background:var(--white);border:2px solid var(--border);border-radius:12px;padding:6px;box-shadow:var(--shadow);}
-.cw-cell{display:flex;align-items:center;justify-content:center;border-radius:3px;font-size:12px;font-weight:800;text-transform:uppercase;position:relative;}
+.cw-cell{display:flex;align-items:center;justify-content:center;border-radius:3px;position:relative;}
 .cw-cell.black{background:#2D3748;}
-.cw-cell.white{background:var(--g7);border:1px solid var(--border);cursor:pointer;}
-.cw-cell.white.active{background:#DBEAFE;border-color:#3B82F6;}
+.cw-cell.white{background:var(--g7);border:1.5px solid var(--border);cursor:pointer;transition:all 0.15s;}
+.cw-cell.white.active-word{background:#EFF6FF;border-color:#93C5FD;}
+.cw-cell.white.active-cell{background:#DBEAFE;border-color:#3B82F6;}
 .cw-cell.white.correct{background:var(--g6);border-color:var(--g4);}
-.cw-cell.white.wrong{background:#FEE2E2;border-color:#EF4444;}
+.cw-cell.white.gifted{background:#DBEAFE;border-color:#3B82F6;}
+.cw-cell.white.hint-cell{animation:hintFlash 0.6s ease 3;}
 .cw-num{position:absolute;top:1px;left:2px;font-size:7px;font-weight:900;color:var(--muted);line-height:1;}
-.cw-letter{font-size:12px;font-weight:900;color:var(--g1);}
+.cw-letter{font-weight:900;color:var(--g1);}
 .cw-clues-side{flex:1;overflow-y:auto;min-width:0;}
-.cw-clues-title{font-size:11px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
-.cw-clue{display:flex;gap:6px;margin-bottom:8px;padding:6px 8px;border-radius:10px;border:1.5px solid var(--border);background:var(--white);cursor:pointer;transition:all 0.15s;}
+.cw-clues-title{font-size:11px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;}
+.cw-clue{display:flex;gap:5px;margin-bottom:6px;padding:5px 7px;border-radius:10px;border:1.5px solid var(--border);background:var(--white);cursor:pointer;transition:all 0.15s;}
 .cw-clue.active{border-color:#3B82F6;background:#EFF6FF;}
 .cw-clue.solved{border-color:var(--g4);background:var(--g7);}
-.cw-clue-num{font-size:12px;font-weight:900;color:var(--g2);flex-shrink:0;min-width:18px;}
-.cw-clue-text{font-size:11px;font-weight:600;color:var(--text);line-height:1.4;}
-.cw-clue-lang{font-size:10px;color:var(--muted);margin-top:2px;}
+.cw-clue.gifted{border-color:#3B82F6;background:#DBEAFE;}
+.cw-clue-num{font-size:11px;font-weight:900;color:var(--g2);flex-shrink:0;min-width:16px;}
+.cw-clue-text{font-size:10px;font-weight:600;color:var(--text);line-height:1.4;}
+.cw-clue-lang{font-size:9px;color:var(--muted);margin-top:1px;}
+.cw-input-area{flex-shrink:0;display:flex;gap:8px;margin-top:6px;}
+.cw-input{flex:1;padding:9px 12px;border:2px solid var(--g3);border-radius:11px;font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;text-transform:uppercase;letter-spacing:2px;outline:none;background:var(--white);}
+.cw-submit{padding:9px 14px;border:none;border-radius:11px;background:linear-gradient(135deg,var(--g2),var(--g3));color:white;font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;cursor:pointer;}
 
-/* INPUT for crossword */
-.cw-input-area{flex-shrink:0;margin-top:8px;display:flex;gap:8px;align-items:center;}
-.cw-input{flex:1;padding:10px 14px;border:2px solid var(--g3);border-radius:12px;font-family:'Nunito',sans-serif;font-size:16px;font-weight:800;text-transform:uppercase;letter-spacing:2px;outline:none;background:var(--white);}
-.cw-submit{padding:10px 16px;border:none;border-radius:12px;background:linear-gradient(135deg,var(--g2),var(--g3));color:white;font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;cursor:pointer;}
-
-/* RESULT / PASS FAIL */
+/* RESULT */
 .result-overlay{position:fixed;inset:0;background:rgba(234,247,216,0.96);z-index:150;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;}
 .result-overlay.show{display:flex;}
-.result-emoji{font-size:60px;margin-bottom:12px;}
-.result-title{font-size:26px;font-weight:900;color:var(--g1);margin-bottom:6px;}
-.result-score{font-size:18px;font-weight:700;color:var(--muted);margin-bottom:16px;}
-.wrong-words{background:var(--white);border:1.5px solid var(--border);border-radius:14px;padding:14px;margin-bottom:20px;width:100%;max-width:340px;text-align:left;}
-.wrong-words h4{font-size:13px;font-weight:800;color:var(--danger);margin-bottom:8px;}
-.wrong-word-item{font-size:13px;font-weight:600;color:var(--text);padding:3px 0;border-bottom:1px solid var(--border);}
-.wrong-word-item:last-child{border-bottom:none;}
-.result-btns{display:flex;flex-direction:column;gap:10px;width:100%;max-width:320px;}
-.result-btns button{padding:14px;border:none;border-radius:13px;font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;cursor:pointer;}
+.result-emoji{font-size:60px;margin-bottom:10px;animation:bounce 0.6s ease infinite alternate;}
+@keyframes bounce{from{transform:translateY(0);}to{transform:translateY(-10px);}}
+.result-title{font-size:24px;font-weight:900;color:var(--g1);margin-bottom:4px;}
+.result-score{font-size:16px;font-weight:700;color:var(--muted);margin-bottom:14px;}
+.wrong-box{background:var(--white);border:1.5px solid var(--border);border-radius:14px;padding:12px;margin-bottom:16px;width:100%;max-width:340px;text-align:left;max-height:160px;overflow-y:auto;}
+.wrong-box h4{font-size:12px;font-weight:800;color:var(--danger);margin-bottom:6px;}
+.wrong-item{font-size:12px;font-weight:600;color:var(--text);padding:2px 0;border-bottom:1px solid var(--border);}
+.wrong-item:last-child{border-bottom:none;}
+.result-btns{display:flex;flex-direction:column;gap:8px;width:100%;max-width:300px;}
+.result-btns button{padding:13px;border:none;border-radius:13px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;cursor:pointer;}
 .btn-redo{background:var(--amber-bg);color:#92400E;border:1.5px solid var(--amber);}
-.btn-next{background:linear-gradient(135deg,var(--g2),var(--g3));color:white;}
+.btn-next{background:linear-gradient(135deg,var(--g2),var(--g3));color:white;box-shadow:0 4px 16px rgba(45,125,45,0.3);}
 .btn-stop{background:var(--g7);color:var(--muted);border:1.5px solid var(--border);}
 
-/* OVERLAY */
+/* CONFETTI */
+.confetti-wrap{position:fixed;inset:0;z-index:200;pointer-events:none;}
+.confetti-piece{position:absolute;width:10px;height:10px;top:-10px;border-radius:2px;animation:confettiFall var(--dur) var(--delay) ease-in forwards;}
+@keyframes confettiFall{0%{transform:translateY(0) rotate(0deg);opacity:1;}100%{transform:translateY(100vh) rotate(720deg);opacity:0;}}
+
+/* OVERLAY / MODAL */
 .overlay{position:fixed;inset:0;background:rgba(234,247,216,0.92);z-index:100;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;}
 .overlay.show{display:flex;}
 .spinner{width:44px;height:44px;border-radius:50%;border:4px solid var(--border);border-top-color:var(--g2);animation:spin 0.8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .overlay-text{font-size:15px;font-weight:800;color:var(--g1);}
-
-/* PIN MODAL */
 .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;display:none;align-items:center;justify-content:center;padding:24px;}
 .modal-backdrop.show{display:flex;}
 .modal{background:var(--white);border-radius:var(--radius);padding:22px;width:100%;max-width:340px;}
@@ -113,18 +148,14 @@ html,body{height:100%;font-family:'Nunito',sans-serif;background:var(--g7);color
 .modal-btns .cancel{background:var(--g7);color:var(--muted);border:1.5px solid var(--border);}
 .modal .err{font-size:12px;color:var(--danger);margin-bottom:8px;display:none;}
 .modal .err.show{display:block;}
-
-/* LANG SELECTOR */
-.lang-bar{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;margin-bottom:6px;flex-shrink:0;}
-.lang-chip{padding:4px 10px;border-radius:14px;border:1.5px solid var(--border);background:var(--white);font-size:11px;font-weight:700;color:var(--muted);cursor:pointer;}
-.lang-chip.active{border-color:var(--g3);background:var(--g6);color:var(--g1);}
 </style>
 </head>
 <body>
 <div class="bg-blobs"><div class="blob blob1"></div><div class="blob blob2"></div></div>
+<div class="idle-effect" id="idleEffect"></div>
+<div class="idle-msg" id="idleMsg">😴 Still there? Come on, you can do it! 💪</div>
+<div class="confetti-wrap" id="confettiWrap"></div>
 <div class="overlay" id="overlay"><div class="spinner"></div><div class="overlay-text" id="overlayText">Setting up Word Hunt...</div></div>
-
-<!-- Exit PIN modal -->
 <div class="modal-backdrop" id="exitModal">
   <div class="modal">
     <h3>🔐 Teacher PIN to exit</h3>
@@ -136,16 +167,11 @@ html,body{height:100%;font-family:'Nunito',sans-serif;background:var(--g7);color
     </div>
   </div>
 </div>
-
-<!-- Result overlay -->
 <div class="result-overlay" id="resultOverlay">
   <div class="result-emoji" id="resultEmoji">🎉</div>
   <div class="result-title" id="resultTitle">Well done!</div>
-  <div class="result-score" id="resultScore">12/12</div>
-  <div class="wrong-words" id="wrongWordsBox" style="display:none">
-    <h4>❌ Words to review:</h4>
-    <div id="wrongWordsList"></div>
-  </div>
+  <div class="result-score" id="resultScore"></div>
+  <div class="wrong-box" id="wrongBox" style="display:none"><h4>❌ Words to review:</h4><div id="wrongList"></div></div>
   <div class="result-btns" id="resultBtns"></div>
 </div>
 
@@ -157,494 +183,652 @@ html,body{height:100%;font-family:'Nunito',sans-serif;background:var(--g7);color
 <div class="main">
   <div class="info-bar">
     <div class="badge-pill">🔍 Word Hunt</div>
-    <div class="score-display" id="scoreDisplay">0 / 12</div>
+    <div class="score-display" id="scoreDisplay">0/12</div>
     <button class="exit-btn" onclick="openModal('exitModal')">Exit 🔐</button>
   </div>
-
-  <!-- Language chips -->
+  <div class="hint-bar">
+    <div class="hint-label">💡 Hints</div>
+    <div class="hint-dots" id="hintDots"></div>
+    <button class="hint-btn" id="hintBtn" onclick="useHint()">Hint!</button>
+  </div>
   <div class="lang-bar" id="langBar"></div>
-
   <div class="puzzle-label" id="puzzleLabel">—</div>
-
-  <!-- Puzzle area — filled dynamically -->
   <div id="puzzleArea" style="flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;"></div>
 </div>
 
 <script>
-const API = 'https://script.google.com/macros/s/AKfycbw76QSB-lv4pA-6s_m6vNk_oGEdeLqrsqkoBGu6j-XMulb-maiAGkqqhfqqEmGfcbn3Ow/exec';
-const LANG_LABELS = {zh:'中文',ms:'Malay',id:'Indonesia',vi:'Việt',th:'ไทย',my:'မြန်မာ',km:'ខ្មែរ',bn:'বাংলা'};
-const LANG_KEY    = {zh:'translation_zh',ms:'translation_ms',id:'translation_id',vi:'translation_vi',th:'translation_th',my:'translation_my',km:'translation_km',bn:'translation_bn'};
+const API='https://script.google.com/macros/s/AKfycbw76QSB-lv4pA-6s_m6vNk_oGEdeLqrsqkoBGu6j-XMulb-maiAGkqqhfqqEmGfcbn3Ow/exec';
+const LANG_LABELS={zh:'中文',ms:'Malay',id:'Indonesia',vi:'Việt',th:'ไทย',my:'မြန်မာ',km:'ខ្មែរ',bn:'বাংলা'};
+const LANG_KEY={zh:'translation_zh',ms:'translation_ms',id:'translation_id',vi:'translation_vi',th:'translation_th',my:'translation_my',km:'translation_km',bn:'translation_bn'};
+const MAX_HINTS=5, TOTAL=12, PASS=11;
 
-let config={}, setup={}, student={};
-let words=[], puzzleWords=[];
-let puzzleType='wordsearch'; // 'wordsearch' | 'crossword'
-let foundWords=new Set();
-let wrongWords=[];
-let recordId='';
+let config={},setup={},student={},recordId='';
+let words=[],puzzleWords=[];
+let puzzleType='wordsearch';
+let foundWords=new Set(),wrongWords=[];
+let hintsLeft=MAX_HINTS;
 let selectedLang=null;
-const TOTAL=12, PASS=11;
+let idleTimer=null, lastActivity=Date.now();
+let giftedWordId=null; // the one pre-revealed word
 
-// Word Search state
-let wsGrid=[], wsSize=0, wsWordPlacements=[];
-let wsDragging=false, wsStart=null, wsSelected=[];
+// Word search state
+let wsGrid=[],wsSize=0,wsWordPlacements=[];
+let wsDragging=false,wsStart=null,wsSelected=[];
 
 // Crossword state
-let cwGrid=[], cwSize=0, cwClues=[], cwActive=null;
+let cwGrid=[],cwClues=[],cwActive=null;
 
+// ============================================================
+// AUDIO ENGINE (Web Audio API)
+// ============================================================
+let audioCtx=null;
+function getAudioCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
+
+function playTone(freq,dur,type='square',vol=0.15,delay=0){
+  try{
+    const ctx=getAudioCtx();
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+    osc.connect(gain);gain.connect(ctx.destination);
+    osc.type=type; osc.frequency.value=freq;
+    gain.gain.setValueAtTime(0,ctx.currentTime+delay);
+    gain.gain.linearRampToValueAtTime(vol,ctx.currentTime+delay+0.01);
+    gain.gain.linearRampToValueAtTime(0,ctx.currentTime+delay+dur);
+    osc.start(ctx.currentTime+delay);
+    osc.stop(ctx.currentTime+delay+dur+0.05);
+  }catch(e){}
+}
+
+function playCorrect(){
+  playTone(523,0.1,'square',0.15,0);
+  playTone(659,0.1,'square',0.15,0.1);
+  playTone(784,0.2,'square',0.15,0.2);
+}
+
+function playWrong(){
+  playTone(200,0.15,'sawtooth',0.12,0);
+  playTone(150,0.2,'sawtooth',0.12,0.15);
+}
+
+function playHint(){
+  playTone(440,0.08,'sine',0.1,0);
+  playTone(550,0.08,'sine',0.1,0.1);
+}
+
+function playWin(){
+  const melody=[523,587,659,698,784,880,988,1047];
+  melody.forEach((f,i)=>playTone(f,0.15,'square',0.15,i*0.1));
+  setTimeout(()=>{
+    [1047,988,880,784].forEach((f,i)=>playTone(f,0.12,'square',0.12,i*0.08));
+  },900);
+}
+
+let bgMusicInterval=null;
+function startBgMusic(){
+  const pattern=[
+    [330,0.08],[370,0.08],[415,0.08],[440,0.16],
+    [392,0.08],[370,0.08],[330,0.16],[0,0.08],
+    [294,0.08],[330,0.08],[370,0.08],[392,0.16],
+    [370,0.08],[330,0.08],[294,0.16],[0,0.16],
+  ];
+  let i=0,t=0;
+  function scheduleNext(){
+    const [freq,dur]=pattern[i%pattern.length];
+    if(freq>0) playTone(freq,dur,'sine',0.06,t);
+    t+=dur+0.02;
+    i++;
+    if(t>2){t=0;}
+    bgMusicInterval=setTimeout(scheduleNext,dur*1000+20);
+  }
+  scheduleNext();
+}
+function stopBgMusic(){if(bgMusicInterval){clearTimeout(bgMusicInterval);bgMusicInterval=null;}}
+
+// ============================================================
+// INIT
+// ============================================================
 async function api(p){const q=new URLSearchParams(p).toString();const r=await fetch(API+'?'+q);return r.json();}
-function showLoading(t){document.getElementById('overlayText').textContent=t||'Loading...';document.getElementById('overlay').classList.add('show');}
+function showLoading(t){document.getElementById('overlayText').textContent=t||'...';document.getElementById('overlay').classList.add('show');}
 function hideLoading(){document.getElementById('overlay').classList.remove('show');}
 function openModal(id){document.getElementById(id).classList.add('show');}
 function closeModal(id){document.getElementById(id).classList.remove('show');}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}}
 
-// ---- INIT ----
 (async function(){
   showLoading('Setting up Word Hunt...');
-  student  = JSON.parse(sessionStorage.getItem('ds_student')||'{}');
-  setup    = JSON.parse(sessionStorage.getItem('ds_setup')||'{}');
-  config   = JSON.parse(sessionStorage.getItem('ds_config')||'{}');
-  recordId = sessionStorage.getItem('ds_record_id')||'';
-  document.getElementById('sessionCode').textContent = recordId||'—';
-
+  student=JSON.parse(sessionStorage.getItem('ds_student')||'{}');
+  setup=JSON.parse(sessionStorage.getItem('ds_setup')||'{}');
+  config=JSON.parse(sessionStorage.getItem('ds_config')||'{}');
+  recordId=sessionStorage.getItem('ds_record_id')||'';
+  document.getElementById('sessionCode').textContent=recordId||'—';
   if(!student.name||!setup.series){window.location.href='index.html';return;}
 
-  // Load words from Task 1 word list
   try{
-    const res = await api({action:'getWords',series:setup.series,level:setup.level,
+    const res=await api({action:'getWords',series:setup.series,level:setup.level,
       unit_from:setup.unit_from,unit_to:setup.unit_to,half:setup.half||'all',mode:'primary'});
     if(!res.success||!res.data.length){alert('No words found.');window.location.href='setup.html';return;}
-    words = res.data;
+    words=res.data;
   }catch(e){alert('Connection error.');return;}
 
-  // Pick 12 random words (only words with letters a-z, length 3-15)
-  const eligible = words.filter(w=>w.word && /^[a-zA-Z\s\-]+$/.test(w.word) && w.word.replace(/[\s\-]/g,'').length>=3);
+  const eligible=words.filter(w=>w.word&&/^[a-zA-Z\s\-]+$/.test(w.word)&&w.word.replace(/[\s\-]/g,'').length>=3);
   shuffle(eligible);
-  puzzleWords = eligible.slice(0,Math.min(TOTAL,eligible.length));
-  document.getElementById('scoreDisplay').textContent = '0 / '+puzzleWords.length;
+  puzzleWords=eligible.slice(0,Math.min(TOTAL,eligible.length));
 
-  // Random puzzle type
-  puzzleType = Math.random()<0.5 ? 'wordsearch' : 'crossword';
-  document.getElementById('puzzleLabel').textContent =
-    puzzleType==='wordsearch' ? '🔍 Word Search — Find the hidden words!' : '✏️ Crossword — Fill in the answers!';
+  puzzleType=Math.random()<0.5?'wordsearch':'crossword';
+  document.getElementById('puzzleLabel').textContent=
+    puzzleType==='wordsearch'?'🔍 Word Search — Find the hidden words!':'✏️ Crossword — Fill in the answers!';
 
-  // Build language bar
   buildLangBar();
+  buildHintDots();
+  updateScore();
+  startBgMusic();
+  startIdleTimer();
 
-  // Build puzzle
   if(puzzleType==='wordsearch') buildWordSearch();
   else buildCrossword();
 
   hideLoading();
+  // Unlock audio on first interaction
+  document.addEventListener('touchstart',()=>{try{getAudioCtx().resume();}catch(e){}},{once:true});
 })();
 
-// ---- LANGUAGE BAR ----
+// ============================================================
+// IDLE TIMER
+// ============================================================
+function resetIdleTimer(){
+  lastActivity=Date.now();
+  document.getElementById('idleEffect').classList.remove('show');
+  document.getElementById('idleMsg').classList.remove('show');
+  if(idleTimer) clearTimeout(idleTimer);
+  idleTimer=setTimeout(showIdleEffect,30000);
+}
+function startIdleTimer(){resetIdleTimer();}
+
+function showIdleEffect(){
+  const eff=document.getElementById('idleEffect');
+  eff.classList.add('show');
+  eff.innerHTML='';
+  const emojis=['⏰','💤','😴','🌟','💫','⭐'];
+  for(let i=0;i<12;i++){
+    const s=document.createElement('div');
+    s.className='sparkle';
+    s.textContent=emojis[Math.floor(Math.random()*emojis.length)];
+    s.style.left=Math.random()*90+'%';
+    s.style.top=Math.random()*80+'%';
+    s.style.animationDelay=(Math.random()*1.5)+'s';
+    eff.appendChild(s);
+  }
+  document.getElementById('idleMsg').classList.add('show');
+  setTimeout(()=>{
+    eff.classList.remove('show');
+    document.getElementById('idleMsg').classList.remove('show');
+    idleTimer=setTimeout(showIdleEffect,30000);
+  },4000);
+}
+
+// ============================================================
+// HINT SYSTEM
+// ============================================================
+function buildHintDots(){
+  const dots=document.getElementById('hintDots');
+  dots.innerHTML='';
+  for(let i=0;i<MAX_HINTS;i++){
+    const d=document.createElement('div');
+    d.className='hint-dot'+(i>=hintsLeft?' used':'');
+    dots.appendChild(d);
+  }
+  document.getElementById('hintBtn').disabled=hintsLeft===0;
+}
+
+function useHint(){
+  if(hintsLeft<=0) return;
+  hintsLeft--;
+  buildHintDots();
+  playHint();
+  resetIdleTimer();
+
+  if(hintsLeft===0){
+    // No hints left — rebuild puzzle
+    setTimeout(()=>{
+      alert('No more hints! Starting over... but keeping your gift word! 🎁');
+      foundWords.clear(); wrongWords=[];
+      if(puzzleType==='wordsearch') buildWordSearch(true);
+      else buildCrossword(true);
+      hintsLeft=MAX_HINTS; buildHintDots();
+    },300);
+    return;
+  }
+
+  if(puzzleType==='wordsearch') hintWordSearch();
+  else hintCrossword();
+}
+
+function hintWordSearch(){
+  // Find first unfound word (not the gifted one)
+  const unfound=wsWordPlacements.filter(p=>!foundWords.has(p.word.clean));
+  if(!unfound.length) return;
+  const target=unfound[0];
+  // Flash a random unrevealed letter in that word
+  const revealed=target.cells.filter(([r,c])=>{
+    const el=document.querySelector(`.ws-cell[data-r="${r}"][data-c="${c}"]`);
+    return el&&!el.classList.contains('hint-flash');
+  });
+  const pick=revealed.length? revealed[Math.floor(Math.random()*revealed.length)] : target.cells[0];
+  const el=document.querySelector(`.ws-cell[data-r="${pick[0]}"][data-c="${pick[1]}"]`);
+  if(el){el.classList.add('hint-flash');setTimeout(()=>el.classList.remove('hint-flash'),2000);}
+}
+
+function hintCrossword(){
+  if(!cwActive) return;
+  const cl=cwActive;
+  // Find first empty cell in active word
+  for(let i=0;i<cl.word.clean.length;i++){
+    const nr=cl.row+(cl.dir==='V'?i:0);
+    const nc=cl.col+(cl.dir==='H'?i:0);
+    if(cwGrid[nr]?.[nc]&&!cwGrid[nr][nc].userLetter){
+      cwGrid[nr][nc].userLetter=cl.word.clean[i];
+      const el=document.getElementById(`cwl_${nr}_${nc}`);
+      if(el){el.textContent=cl.word.clean[i];el.parentElement.classList.add('hint-cell');
+        setTimeout(()=>el.parentElement.classList.remove('hint-cell'),2000);}
+      return;
+    }
+  }
+}
+
+// ============================================================
+// SCORE
+// ============================================================
+function updateScore(){
+  document.getElementById('scoreDisplay').textContent=foundWords.size+'/'+puzzleWords.length;
+}
+
+// ============================================================
+// LANGUAGE BAR
+// ============================================================
 function buildLangBar(){
-  const bar = document.getElementById('langBar');
-  bar.innerHTML='';
+  const bar=document.getElementById('langBar');bar.innerHTML='';
   Object.entries(LANG_LABELS).forEach(([code,label])=>{
-    const chip=document.createElement('div');
-    chip.className='lang-chip'+(selectedLang===code?' active':'');
-    chip.textContent=label; chip.dataset.code=code;
-    chip.onclick=()=>{
-      selectedLang = selectedLang===code ? null : code;
-      document.querySelectorAll('.lang-chip').forEach(c=>c.classList.toggle('active',c.dataset.code===selectedLang));
+    const c=document.createElement('div');c.className='lang-chip';c.textContent=label;c.dataset.code=code;
+    c.onclick=()=>{
+      selectedLang=selectedLang===code?null:code;
+      document.querySelectorAll('.lang-chip').forEach(x=>x.classList.toggle('active',x.dataset.code===selectedLang));
       if(puzzleType==='crossword') renderCrosswordClues();
     };
-    bar.appendChild(chip);
+    bar.appendChild(c);
   });
 }
 
 // ============================================================
 // WORD SEARCH
 // ============================================================
-function buildWordSearch(){
-  const cleanWords = puzzleWords.map(w=>({...w, clean:w.word.toUpperCase().replace(/[\s\-]/g,'')}));
-  wsSize = Math.max(14, Math.ceil(Math.sqrt(cleanWords.reduce((s,w)=>s+w.clean.length,0)*2.5)));
-  wsSize = Math.min(wsSize,18);
-
-  // Init empty grid
-  wsGrid = Array.from({length:wsSize},()=>Array(wsSize).fill(''));
+function buildWordSearch(keepGift=false){
+  const cleanWords=puzzleWords.map(w=>({...w,clean:w.word.toUpperCase().replace(/[\s\-]/g,'')}));
+  wsSize=Math.min(18,Math.max(14,Math.ceil(Math.sqrt(cleanWords.reduce((s,w)=>s+w.clean.length,0)*2.5))));
+  wsGrid=Array.from({length:wsSize},()=>Array(wsSize).fill(''));
   wsWordPlacements=[];
 
   const DIRS=[[0,1],[1,0],[1,1],[0,-1],[-1,0],[-1,-1],[1,-1],[-1,1]];
-
-  // Place words
   for(const w of cleanWords){
     let placed=false;
-    for(let attempt=0;attempt<200&&!placed;attempt++){
+    for(let a=0;a<300&&!placed;a++){
       const dir=DIRS[Math.floor(Math.random()*DIRS.length)];
       const dr=dir[0],dc=dir[1];
-      const maxR=wsSize-(dr*(w.clean.length-1));
-      const maxC=wsSize-(dc*(w.clean.length-1));
-      if(maxR<=0||maxC<=0) continue;
-      const r=Math.floor(Math.random()*Math.max(1,Math.min(wsSize,maxR)));
-      const c=Math.floor(Math.random()*Math.max(1,Math.min(wsSize,maxC)));
-      // Check fit
+      const mR=wsSize-Math.max(0,dr*(w.clean.length-1));
+      const mC=wsSize-Math.max(0,dc*(w.clean.length-1));
+      const r=Math.floor(Math.random()*Math.max(1,mR));
+      const c=Math.floor(Math.random()*Math.max(1,mC));
       let ok=true; const cells=[];
       for(let i=0;i<w.clean.length;i++){
-        const nr=r+dr*i, nc=c+dc*i;
+        const nr=r+dr*i,nc=c+dc*i;
         if(nr<0||nr>=wsSize||nc<0||nc>=wsSize){ok=false;break;}
         if(wsGrid[nr][nc]!==''&&wsGrid[nr][nc]!==w.clean[i]){ok=false;break;}
         cells.push([nr,nc]);
       }
-      if(ok){
-        cells.forEach(([nr,nc],i)=>wsGrid[nr][nc]=w.clean[i]);
-        wsWordPlacements.push({word:w,cells});
-        placed=true;
-      }
+      if(ok){cells.forEach(([nr,nc],i)=>wsGrid[nr][nc]=w.clean[i]);wsWordPlacements.push({word:w,cells});placed=true;}
     }
   }
-
-  // Fill remaining with random letters
   const alpha='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  for(let r=0;r<wsSize;r++) for(let c=0;c<wsSize;c++)
-    if(!wsGrid[r][c]) wsGrid[r][c]=alpha[Math.floor(Math.random()*26)];
+  for(let r=0;r<wsSize;r++)for(let c=0;c<wsSize;c++)if(!wsGrid[r][c])wsGrid[r][c]=alpha[Math.floor(Math.random()*26)];
+
+  // Gift one word (random, or keep previous if keepGift)
+  if(!keepGift||!giftedWordId){
+    const pick=wsWordPlacements[Math.floor(Math.random()*wsWordPlacements.length)];
+    giftedWordId=pick?.word.word_id;
+  }
+  // Auto-mark gifted word as found
+  const giftedPlacement=wsWordPlacements.find(p=>p.word.word_id===giftedWordId);
+  if(giftedPlacement) foundWords.add(giftedPlacement.word.clean);
 
   renderWordSearch();
 }
 
 function renderWordSearch(){
-  const area = document.getElementById('puzzleArea');
-  area.innerHTML='';
-  area.className='ws-container';
+  const area=document.getElementById('puzzleArea');
+  area.innerHTML=''; area.className='ws-container';
+  const gridWrap=document.createElement('div');gridWrap.className='ws-grid-wrap';
+  const grid=document.createElement('div');grid.className='ws-grid';
+  const avW=Math.min(window.innerWidth-24,420);
+  const avH=window.innerHeight*0.5;
+  const cs=Math.floor(Math.min(avW/wsSize,avH/wsSize))-2;
+  grid.style.gridTemplateColumns=`repeat(${wsSize},${cs}px)`;
 
-  // Grid
-  const gridWrap=document.createElement('div'); gridWrap.className='ws-grid-wrap';
-  const grid=document.createElement('div'); grid.className='ws-grid';
-
-  // Calculate cell size to fit screen
-  const availW = Math.min(window.innerWidth-24, 420);
-  const availH = window.innerHeight*0.52;
-  const cellSize = Math.floor(Math.min(availW/wsSize, availH/wsSize))-2;
-
-  grid.style.gridTemplateColumns=`repeat(${wsSize},${cellSize}px)`;
-
-  for(let r=0;r<wsSize;r++) for(let c=0;c<wsSize;c++){
+  for(let r=0;r<wsSize;r++)for(let c=0;c<wsSize;c++){
     const cell=document.createElement('div');
-    cell.className='ws-cell';
-    cell.style.width=cellSize+'px'; cell.style.height=cellSize+'px';
-    cell.style.fontSize=Math.max(10,cellSize-6)+'px';
-    cell.textContent=wsGrid[r][c];
-    cell.dataset.r=r; cell.dataset.c=c;
+    cell.className='ws-cell'; cell.style.width=cs+'px';cell.style.height=cs+'px';
+    cell.style.fontSize=Math.max(9,cs-6)+'px'; cell.textContent=wsGrid[r][c];
+    cell.dataset.r=r;cell.dataset.c=c;
+    // Check if this cell belongs to gifted word
+    const gp=wsWordPlacements.find(p=>p.word.word_id===giftedWordId);
+    if(gp&&gp.cells.some(([gr,gc])=>gr===r&&gc===c)) cell.classList.add('gifted');
+    else if(foundWords.has(wsGrid[r][c])&&wsWordPlacements.some(p=>foundWords.has(p.word.clean)&&p.cells.some(([pr,pc])=>pr===r&&pc===c))) cell.classList.add('found');
     grid.appendChild(cell);
   }
 
-  // Touch/mouse events
+  // Properly mark found cells
+  wsWordPlacements.forEach(p=>{
+    if(foundWords.has(p.word.clean)){
+      p.cells.forEach(([r,c])=>{
+        const el=document.querySelector(`.ws-cell[data-r="${r}"][data-c="${c}"]`);
+        if(el){
+          if(p.word.word_id===giftedWordId) el.classList.add('gifted');
+          else el.classList.add('found');
+        }
+      });
+    }
+  });
+
+  // Touch/mouse drag
   let touchId=null;
   grid.addEventListener('mousedown',e=>{
-    const cell=e.target.closest('.ws-cell'); if(!cell) return;
-    wsDragging=true; wsStart=[+cell.dataset.r,+cell.dataset.c];
-    wsSelected=[[+cell.dataset.r,+cell.dataset.c]];
-    highlightSelected();
+    resetIdleTimer();
+    const cell=e.target.closest('.ws-cell');if(!cell)return;
+    wsDragging=true;wsStart=[+cell.dataset.r,+cell.dataset.c];wsSelected=[[+cell.dataset.r,+cell.dataset.c]];
+    highlightWS();
   });
   grid.addEventListener('mousemove',e=>{
-    if(!wsDragging) return;
-    const cell=e.target.closest('.ws-cell'); if(!cell) return;
-    updateSelection(+cell.dataset.r,+cell.dataset.c);
+    if(!wsDragging)return;
+    const cell=e.target.closest('.ws-cell');if(!cell)return;
+    updateWSSelection(+cell.dataset.r,+cell.dataset.c);
   });
-  grid.addEventListener('mouseup',()=>{ if(wsDragging){wsDragging=false;checkWSSelection();} });
+  grid.addEventListener('mouseup',()=>{if(wsDragging){wsDragging=false;checkWSSelection();}});
   grid.addEventListener('touchstart',e=>{
-    const t=e.touches[0]; touchId=t.identifier;
-    const cell=document.elementFromPoint(t.clientX,t.clientY)?.closest('.ws-cell'); if(!cell) return;
-    wsDragging=true; wsStart=[+cell.dataset.r,+cell.dataset.c];
-    wsSelected=[[+cell.dataset.r,+cell.dataset.c]];
-    highlightSelected(); e.preventDefault();
+    resetIdleTimer();
+    const t=e.touches[0];touchId=t.identifier;
+    const cell=document.elementFromPoint(t.clientX,t.clientY)?.closest('.ws-cell');if(!cell)return;
+    wsDragging=true;wsStart=[+cell.dataset.r,+cell.dataset.c];wsSelected=[[+cell.dataset.r,+cell.dataset.c]];
+    highlightWS();e.preventDefault();
   },{passive:false});
   grid.addEventListener('touchmove',e=>{
-    if(!wsDragging) return;
-    const t=Array.from(e.touches).find(tt=>tt.identifier===touchId); if(!t) return;
-    const cell=document.elementFromPoint(t.clientX,t.clientY)?.closest('.ws-cell'); if(!cell) return;
-    updateSelection(+cell.dataset.r,+cell.dataset.c); e.preventDefault();
+    if(!wsDragging)return;
+    const t=Array.from(e.touches).find(x=>x.identifier===touchId);if(!t)return;
+    const cell=document.elementFromPoint(t.clientX,t.clientY)?.closest('.ws-cell');if(!cell)return;
+    updateWSSelection(+cell.dataset.r,+cell.dataset.c);e.preventDefault();
   },{passive:false});
-  grid.addEventListener('touchend',()=>{ if(wsDragging){wsDragging=false;checkWSSelection();} });
+  grid.addEventListener('touchend',()=>{if(wsDragging){wsDragging=false;checkWSSelection();}});
 
-  gridWrap.appendChild(grid); area.appendChild(gridWrap);
+  gridWrap.appendChild(grid);area.appendChild(gridWrap);
 
   // Word chips
-  const chipWrap=document.createElement('div'); chipWrap.className='ws-wordlist';
+  const chipWrap=document.createElement('div');chipWrap.className='ws-wordlist';
   puzzleWords.forEach(w=>{
+    const clean=w.word.toUpperCase().replace(/[\s\-]/g,'');
     const chip=document.createElement('div');
-    chip.className='ws-word-chip'+(foundWords.has(w.word.toUpperCase().replace(/[\s\-]/g,''))?' found':'');
     chip.id='chip_'+w.word_id;
-    chip.textContent=w.definition_en ? (w.definition_en.length>50 ? w.definition_en.slice(0,50)+'…' : w.definition_en) : w.word;
+    const isGifted=w.word_id===giftedWordId;
+    const isFound=foundWords.has(clean);
+    chip.className='ws-word-chip'+(isGifted?' gifted':isFound?' found':'');
+    chip.textContent=w.definition_en?(w.definition_en.length>45?w.definition_en.slice(0,45)+'…':w.definition_en):w.word;
     chipWrap.appendChild(chip);
   });
   area.appendChild(chipWrap);
+  updateScore();
 }
 
-function updateSelection(r,c){
-  if(!wsStart) return;
-  const [sr,sc]=wsStart;
-  const dr=r-sr, dc=c-sc;
+function updateWSSelection(r,c){
+  if(!wsStart)return;
+  const[sr,sc]=wsStart,dr=r-sr,dc=c-sc;
   const len=Math.max(Math.abs(dr),Math.abs(dc));
-  if(len===0){wsSelected=[[sr,sc]];highlightSelected();return;}
-  // Only allow straight lines
+  if(len===0){wsSelected=[[sr,sc]];highlightWS();return;}
   let stepR=0,stepC=0;
   if(Math.abs(dr)===Math.abs(dc)){stepR=dr/len;stepC=dc/len;}
-  else if(Math.abs(dr)>Math.abs(dc)){stepR=dr/Math.abs(dr);stepC=0;}
-  else{stepR=0;stepC=dc/Math.abs(dc);}
+  else if(Math.abs(dr)>Math.abs(dc)){stepR=dr/Math.abs(dr);}
+  else{stepC=dc/Math.abs(dc);}
   wsSelected=[];
-  for(let i=0;i<=len&&i<wsSize*2;i++) wsSelected.push([sr+Math.round(stepR*i),sc+Math.round(stepC*i)]);
-  highlightSelected();
+  for(let i=0;i<=len&&i<wsSize*2;i++)wsSelected.push([sr+Math.round(stepR*i),sc+Math.round(stepC*i)]);
+  highlightWS();
 }
 
-function highlightSelected(){
-  document.querySelectorAll('.ws-cell').forEach(c=>{
-    if(!c.classList.contains('found')) c.classList.remove('selected');
-  });
+function highlightWS(){
+  document.querySelectorAll('.ws-cell:not(.found):not(.gifted)').forEach(c=>c.classList.remove('selected'));
   wsSelected.forEach(([r,c])=>{
-    const cell=document.querySelector(`.ws-cell[data-r="${r}"][data-c="${c}"]`);
-    if(cell&&!cell.classList.contains('found')) cell.classList.add('selected');
+    const el=document.querySelector(`.ws-cell[data-r="${r}"][data-c="${c}"]`);
+    if(el&&!el.classList.contains('found')&&!el.classList.contains('gifted'))el.classList.add('selected');
   });
 }
 
 function checkWSSelection(){
-  const selected=wsSelected.map(([r,c])=>wsGrid[r][c]).join('');
-  const selRev=[...wsSelected].reverse().map(([r,c])=>wsGrid[r][c]).join('');
-
-  for(const placement of wsWordPlacements){
-    const w=placement.word.clean;
-    if((selected===w||selRev===w)&&!foundWords.has(w)){
-      foundWords.add(w);
-      // Mark cells as found
-      placement.cells.forEach(([r,c])=>{
-        const cell=document.querySelector(`.ws-cell[data-r="${r}"][data-c="${c}"]`);
-        if(cell){cell.classList.remove('selected');cell.classList.add('found');}
+  const sel=wsSelected.map(([r,c])=>wsGrid[r][c]).join('');
+  const rev=[...wsSelected].reverse().map(([r,c])=>wsGrid[r][c]).join('');
+  for(const p of wsWordPlacements){
+    if((sel===p.word.clean||rev===p.word.clean)&&!foundWords.has(p.word.clean)){
+      foundWords.add(p.word.clean);
+      p.cells.forEach(([r,c])=>{
+        const el=document.querySelector(`.ws-cell[data-r="${r}"][data-c="${c}"]`);
+        if(el){el.classList.remove('selected');el.classList.add('found');}
       });
-      // Mark chip
-      const chip=document.getElementById('chip_'+placement.word.word_id);
-      if(chip) chip.classList.add('found');
-      // Update score
-      document.getElementById('scoreDisplay').textContent=foundWords.size+' / '+puzzleWords.length;
-      // Check win
-      if(foundWords.size===puzzleWords.length) setTimeout(showResult,500);
-      // Clear selection
-      wsSelected=[]; wsStart=null;
-      return;
+      const chip=document.getElementById('chip_'+p.word.word_id);
+      if(chip){chip.classList.remove('gifted');chip.classList.add('found');}
+      playCorrect();
+      updateScore();
+      resetIdleTimer();
+      if(foundWords.size===puzzleWords.length)setTimeout(showResult,600);
+      wsSelected=[];wsStart=null;return;
     }
   }
-  // Clear selection if no match
   document.querySelectorAll('.ws-cell.selected').forEach(c=>c.classList.remove('selected'));
-  wsSelected=[]; wsStart=null;
+  wsSelected=[];wsStart=null;
 }
 
 // ============================================================
 // CROSSWORD
 // ============================================================
-function buildCrossword(){
-  // Simple crossword: place words on grid intersecting where possible
-  const cleanWords = puzzleWords.map(w=>({...w,clean:w.word.toUpperCase().replace(/[\s\-]/g,'')}))
-    .filter(w=>w.clean.length>=3)
-    .sort((a,b)=>b.clean.length-a.clean.length);
+function buildCrossword(keepGift=false){
+  const cleanWords=puzzleWords.map(w=>({...w,clean:w.word.toUpperCase().replace(/[\s\-]/g,'')}))
+    .filter(w=>w.clean.length>=3).sort((a,b)=>b.clean.length-a.clean.length);
+  const SZ=20;
+  cwGrid=Array.from({length:SZ},()=>Array(SZ).fill(null));
+  cwClues=[];let clueNum=1;
 
-  cwSize=20;
-  cwGrid=Array.from({length:cwSize},()=>Array(cwSize).fill(null));
-  cwClues=[];
-  let clueNum=1;
+  // Place first word
+  const fw=cleanWords[0];
+  const sc=Math.floor((SZ-fw.clean.length)/2),sr=Math.floor(SZ/2);
+  placeCW(fw,sr,sc,'H',clueNum++,SZ);
 
-  // Place first word horizontally in center
-  const firstWord=cleanWords[0];
-  const startC=Math.floor((cwSize-firstWord.clean.length)/2);
-  const startR=Math.floor(cwSize/2);
-  placeWordCW(firstWord,startR,startC,'H',clueNum++);
-
-  // Try to place remaining words intersecting
   for(let wi=1;wi<cleanWords.length;wi++){
-    const w=cleanWords[wi];
-    let placed=false;
-    // Try each placed clue
-    for(const placed_clue of [...cwClues]){
-      if(placed) break;
-      const pc=placed_clue;
-      // Find common letters
+    const w=cleanWords[wi];let placed=false;
+    for(const pc of [...cwClues]){
+      if(placed)break;
       for(let pi=0;pi<pc.word.clean.length&&!placed;pi++){
         for(let wi2=0;wi2<w.clean.length&&!placed;wi2++){
           if(pc.word.clean[pi]===w.clean[wi2]){
-            const newDir=pc.dir==='H'?'V':'H';
-            let nr,nc;
-            if(newDir==='V'){nr=pc.row-wi2;nc=pc.col+pi;}
-            else{nr=pc.row+pi;nc=pc.col-wi2;}
-            if(canPlaceCW(w.clean,nr,nc,newDir)){
-              placeWordCW(w,nr,nc,newDir,clueNum++);
-              placed=true;
-            }
+            const nd=pc.dir==='H'?'V':'H';
+            const nr=nd==='V'?pc.row-wi2:pc.row+pi;
+            const nc=nd==='H'?pc.col-wi2:pc.col+pi;
+            if(canCW(w.clean,nr,nc,nd,SZ)){placeCW(w,nr,nc,nd,clueNum++,SZ);placed=true;}
           }
         }
       }
     }
     if(!placed){
-      // Place anywhere with space
-      for(let attempts=0;attempts<50&&!placed;attempts++){
-        const dir=Math.random()<0.5?'H':'V';
-        const r=Math.floor(Math.random()*(cwSize-2))+1;
-        const c=Math.floor(Math.random()*(cwSize-2))+1;
-        if(canPlaceCW(w.clean,r,c,dir)){placeWordCW(w,r,c,dir,clueNum++);placed=true;}
+      for(let a=0;a<80&&!placed;a++){
+        const d=Math.random()<0.5?'H':'V';
+        const r=1+Math.floor(Math.random()*(SZ-2));
+        const c=1+Math.floor(Math.random()*(SZ-2));
+        if(canCW(w.clean,r,c,d,SZ)){placeCW(w,r,c,d,clueNum++,SZ);placed=true;}
       }
     }
   }
 
-  // Trim grid to used area
-  let minR=cwSize,maxR=0,minC=cwSize,maxC=0;
+  // Trim
+  let minR=SZ,maxR=0,minC=SZ,maxC=0;
   cwClues.forEach(cl=>{
-    minR=Math.min(minR,cl.row); maxR=Math.max(maxR,cl.row+(cl.dir==='V'?cl.word.clean.length-1:0));
-    minC=Math.min(minC,cl.col); maxC=Math.max(maxC,cl.col+(cl.dir==='H'?cl.word.clean.length-1:0));
+    minR=Math.min(minR,cl.row);maxR=Math.max(maxR,cl.row+(cl.dir==='V'?cl.word.clean.length-1:0));
+    minC=Math.min(minC,cl.col);maxC=Math.max(maxC,cl.col+(cl.dir==='H'?cl.word.clean.length-1:0));
   });
-  // Add padding
-  minR=Math.max(0,minR-1); minC=Math.max(0,minC-1);
-  maxR=Math.min(cwSize-1,maxR+1); maxC=Math.min(cwSize-1,maxC+1);
-  const trimH=maxR-minR+1, trimW=maxC-minC+1;
-
-  // Build trimmed grid
-  const tGrid=Array.from({length:trimH},(_,r)=>Array.from({length:trimW},(_,c)=>cwGrid[minR+r][minC+c]));
+  minR=Math.max(0,minR-1);minC=Math.max(0,minC-1);
+  maxR=Math.min(SZ-1,maxR+1);maxC=Math.min(SZ-1,maxC+1);
+  const tH=maxR-minR+1,tW=maxC-minC+1;
+  cwGrid=Array.from({length:tH},(_,r)=>Array.from({length:tW},(_,c)=>cwGrid[minR+r]?.[minC+c]||null));
   cwClues.forEach(cl=>{cl.row-=minR;cl.col-=minC;});
-  cwGrid=tGrid; cwSize=Math.max(trimH,trimW);
+
+  // Gift one clue
+  if(!keepGift||!giftedWordId){
+    const pick=cwClues[Math.floor(Math.random()*cwClues.length)];
+    giftedWordId=pick?.word.word_id;
+  }
+  const giftClue=cwClues.find(cl=>cl.word.word_id===giftedWordId);
+  if(giftClue){
+    giftClue.solved=true;giftClue.gifted=true;
+    foundWords.add(giftClue.word.clean);
+    for(let i=0;i<giftClue.word.clean.length;i++){
+      const nr=giftClue.row+(giftClue.dir==='V'?i:0);
+      const nc=giftClue.col+(giftClue.dir==='H'?i:0);
+      if(cwGrid[nr]?.[nc])cwGrid[nr][nc].userLetter=giftClue.word.clean[i];
+    }
+  }
 
   renderCrossword();
 }
 
-function canPlaceCW(word,r,c,dir){
+function canCW(word,r,c,dir,SZ){
   for(let i=0;i<word.length;i++){
-    const nr=r+(dir==='V'?i:0), nc=c+(dir==='H'?i:0);
-    if(nr<0||nr>=cwSize||nc<0||nc>=cwSize) return false;
-    const cell=cwGrid[nr][nc];
-    if(cell&&cell.letter&&cell.letter!==word[i]) return false;
-    // Check adjacency (prevent parallel words touching)
-    if(!cell||!cell.letter){
-      const pr=nr+(dir==='V'?0:1),pc=nc+(dir==='H'?0:1);
-      const pl=nr-(dir==='V'?0:1),plc=nc-(dir==='H'?0:1);
-      if(dir==='H'){
-        if(cwGrid[nr]?.[nc-1]?.letter&&i===0) return false;
-        if(cwGrid[nr]?.[nc+1]?.letter&&i===word.length-1) return false;
-      } else {
-        if(cwGrid[nr-1]?.[nc]?.letter&&i===0) return false;
-        if(cwGrid[nr+1]?.[nc]?.letter&&i===word.length-1) return false;
-      }
-    }
+    const nr=r+(dir==='V'?i:0),nc=c+(dir==='H'?i:0);
+    if(nr<0||nr>=SZ||nc<0||nc>=SZ)return false;
+    const cell=cwGrid[nr]?.[nc];
+    if(cell&&cell.letter&&cell.letter!==word[i])return false;
   }
   return true;
 }
 
-function placeWordCW(wordObj,r,c,dir,num){
+function placeCW(wordObj,r,c,dir,num,SZ){
   for(let i=0;i<wordObj.clean.length;i++){
-    const nr=r+(dir==='V'?i:0), nc=c+(dir==='H'?i:0);
-    if(!cwGrid[nr]) cwGrid[nr]=Array(cwSize).fill(null);
-    if(!cwGrid[nr][nc]) cwGrid[nr][nc]={letter:wordObj.clean[i],num:null,white:true,userLetter:''};
-    else cwGrid[nr][nc].letter=wordObj.clean[i];
-    if(!cwGrid[nr][nc].white) cwGrid[nr][nc].white=true;
+    const nr=r+(dir==='V'?i:0),nc=c+(dir==='H'?i:0);
+    if(!cwGrid[nr])cwGrid[nr]=Array(SZ).fill(null);
+    if(!cwGrid[nr][nc])cwGrid[nr][nc]={letter:wordObj.clean[i],num:null,white:true,userLetter:''};
+    else{cwGrid[nr][nc].letter=wordObj.clean[i];cwGrid[nr][nc].white=true;}
   }
-  cwGrid[r][c].num=num;
-  cwClues.push({num,word:wordObj,row:r,col:c,dir,solved:false});
+  if(cwGrid[r][c])cwGrid[r][c].num=num;
+  cwClues.push({num,word:wordObj,row:r,col:c,dir,solved:false,gifted:false});
 }
-
-let cwInputTarget=null;
 
 function renderCrossword(){
   const area=document.getElementById('puzzleArea');
-  area.innerHTML='';
-  area.className='cw-container';
+  area.innerHTML='';area.className='cw-container';
+  const gridSide=document.createElement('div');gridSide.className='cw-grid-side';
+  const grid=document.createElement('div');grid.className='cw-grid';
+  const rows=cwGrid.length,cols=cwGrid[0]?.length||1;
+  const avW=Math.min(window.innerWidth*0.48,200);
+  const avH=window.innerHeight*0.52;
+  const cs=Math.floor(Math.min(avW/cols,avH/rows,20));
+  grid.style.gridTemplateColumns=`repeat(${cols},${cs}px)`;
 
-  // Grid side
-  const gridSide=document.createElement('div'); gridSide.className='cw-grid-side';
-  const grid=document.createElement('div'); grid.className='cw-grid';
-
-  const availW=Math.min(window.innerWidth*0.5,220);
-  const availH=window.innerHeight*0.55;
-  const rows=cwGrid.length, cols=cwGrid[0]?.length||1;
-  const cellSize=Math.floor(Math.min(availW/cols,availH/rows,22));
-
-  grid.style.gridTemplateColumns=`repeat(${cols},${cellSize}px)`;
-
-  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
     const cell=document.createElement('div');
-    cell.className='cw-cell '+(cwGrid[r]?.[c]?.white?'white':'black');
-    cell.style.width=cellSize+'px'; cell.style.height=cellSize+'px';
-    if(cwGrid[r]?.[c]?.white){
-      if(cwGrid[r][c].num){const n=document.createElement('span');n.className='cw-num';n.textContent=cwGrid[r][c].num;cell.appendChild(n);}
-      const l=document.createElement('span');l.className='cw-letter';l.id=`cwl_${r}_${c}`;l.textContent=cwGrid[r][c].userLetter||'';cell.appendChild(l);
-      cell.dataset.r=r; cell.dataset.c=c;
-      cell.onclick=()=>activateCWCell(r,c);
+    const cd=cwGrid[r]?.[c];
+    cell.className='cw-cell '+(cd?.white?'white':'black');
+    cell.style.width=cs+'px';cell.style.height=cs+'px';
+    if(cd?.white){
+      if(cd.num){const n=document.createElement('span');n.className='cw-num';n.textContent=cd.num;cell.appendChild(n);}
+      const l=document.createElement('span');l.className='cw-letter';l.id=`cwl_${r}_${c}`;
+      l.style.fontSize=Math.max(8,cs-7)+'px';
+      l.textContent=cd.userLetter||'';cell.appendChild(l);
+      cell.dataset.r=r;cell.dataset.c=c;
+      // Classes
+      const clue=cwClues.find(cl=>{
+        if(cl.dir==='H')return cl.row===r&&c>=cl.col&&c<cl.col+cl.word.clean.length;
+        return cl.col===c&&r>=cl.row&&r<cl.row+cl.word.clean.length;
+      });
+      if(clue?.gifted)cell.classList.add('gifted');
+      else if(clue?.solved)cell.classList.add('correct');
+      else if(clue===cwActive){
+        cell.classList.add('active-word');
+        const posInWord=cl=>cl.dir==='H'?c-cl.col:r-cl.row;
+        if(cwActive&&posInWord(cwActive)>=0)cell.classList.add('active-cell');
+      }
+      cell.onclick=()=>activateCW(r,c);
     }
     grid.appendChild(cell);
   }
-  gridSide.appendChild(grid); area.appendChild(gridSide);
+  gridSide.appendChild(grid);area.appendChild(gridSide);
 
-  // Clues side
-  const cluesSide=document.createElement('div'); cluesSide.className='cw-clues-side';
-  renderCrosswordClues(cluesSide);
-  area.appendChild(cluesSide);
+  const cluesSide=document.createElement('div');cluesSide.className='cw-clues-side';
+  renderCrosswordClues(cluesSide);area.appendChild(cluesSide);
 
-  // Input area
-  buildCWInput(area);
+  // Input
+  const inputArea=document.createElement('div');
+  inputArea.style.cssText='display:flex;gap:8px;margin-top:6px;flex-shrink:0;';
+  inputArea.className='cw-input-area';
+  const inp=document.createElement('input');inp.className='cw-input';inp.id='cwInput';
+  inp.placeholder='Type answer...';inp.maxLength=20;
+  inp.addEventListener('input',()=>{inp.value=inp.value.toUpperCase();resetIdleTimer();});
+  inp.onkeydown=e=>{if(e.key==='Enter')checkCW();};
+  const sub=document.createElement('button');sub.className='cw-submit';sub.textContent='Check ✓';sub.onclick=checkCW;
+  inputArea.appendChild(inp);inputArea.appendChild(sub);
+  // Append to main flex column
+  document.querySelector('.main').appendChild(inputArea);
+  updateScore();
 }
 
 function renderCrosswordClues(container){
-  const side=container||document.querySelector('.cw-clues-side');
-  if(!side) return;
+  const side=container||document.querySelector('.cw-clues-side');if(!side)return;
   side.innerHTML='';
-  const title=document.createElement('div'); title.className='cw-clues-title'; title.textContent='Clues'; side.appendChild(title);
+  const title=document.createElement('div');title.className='cw-clues-title';title.textContent='Clues';side.appendChild(title);
   cwClues.forEach(cl=>{
     const div=document.createElement('div');
-    div.className='cw-clue'+(cl===cwActive?' active':'')+(cl.solved?' solved':'');
+    div.className='cw-clue'+(cl===cwActive?' active':'')+(cl.gifted?' gifted':cl.solved?' solved':'');
     div.id='clue_'+cl.num;
-    div.onclick=()=>{ cwActive=cl; renderCrossword(); };
-    const num=document.createElement('div'); num.className='cw-clue-num'; num.textContent=cl.num+(cl.dir==='H'?'→':'↓');
-    const txt=document.createElement('div'); txt.className='cw-clue-text';
-    txt.textContent=cl.word.definition_en||cl.word.word;
+    div.onclick=()=>{if(!cl.solved&&!cl.gifted){cwActive=cl;renderCrossword();resetIdleTimer();}};
+    const num=document.createElement('div');num.className='cw-clue-num';num.textContent=cl.num+(cl.dir==='H'?'→':'↓');
+    const txt=document.createElement('div');txt.className='cw-clue-text';
+    txt.textContent=(cl.gifted?'🎁 ':'')+( cl.word.definition_en||cl.word.word);
     if(selectedLang&&cl.word[LANG_KEY[selectedLang]]){
-      const lang=document.createElement('div'); lang.className='cw-clue-lang';
-      lang.textContent=cl.word[LANG_KEY[selectedLang]]; txt.appendChild(lang);
+      const lang=document.createElement('div');lang.className='cw-clue-lang';lang.textContent=cl.word[LANG_KEY[selectedLang]];txt.appendChild(lang);
     }
-    div.appendChild(num); div.appendChild(txt); side.appendChild(div);
+    div.appendChild(num);div.appendChild(txt);side.appendChild(div);
   });
 }
 
-function buildCWInput(area){
-  const inputArea=document.createElement('div'); inputArea.className='cw-input-area';
-  inputArea.style.cssText='flex-shrink:0;margin-top:8px;display:flex;gap:8px;position:absolute;bottom:60px;left:12px;right:12px;';
-  const inp=document.createElement('input'); inp.className='cw-input'; inp.id='cwInput';
-  inp.placeholder='Type answer...'; inp.maxLength=20;
-  inp.addEventListener('input',()=>inp.value=inp.value.toUpperCase());
-  const sub=document.createElement('button'); sub.className='cw-submit'; sub.textContent='Check ✓';
-  sub.onclick=checkCWAnswer;
-  inp.onkeydown=e=>{ if(e.key==='Enter') checkCWAnswer(); };
-  inputArea.appendChild(inp); inputArea.appendChild(sub);
-  document.querySelector('.main').appendChild(inputArea);
-}
-
-function activateCWCell(r,c){
-  // Find clue for this cell
+function activateCW(r,c){
   const clue=cwClues.find(cl=>{
-    if(cl.dir==='H') return cl.row===r&&c>=cl.col&&c<cl.col+cl.word.clean.length;
-    else return cl.col===c&&r>=cl.row&&r<cl.row+cl.word.clean.length;
+    if(cl.solved||cl.gifted)return false;
+    if(cl.dir==='H')return cl.row===r&&c>=cl.col&&c<cl.col+cl.word.clean.length;
+    return cl.col===c&&r>=cl.row&&r<cl.row+cl.word.clean.length;
   });
-  if(clue&&!clue.solved){ cwActive=clue; renderCrossword(); document.getElementById('cwInput')?.focus(); }
+  if(clue){cwActive=clue;renderCrossword();document.getElementById('cwInput')?.focus();resetIdleTimer();}
 }
 
-function checkCWAnswer(){
-  const inp=document.getElementById('cwInput'); if(!inp||!cwActive) return;
+function checkCW(){
+  const inp=document.getElementById('cwInput');if(!inp||!cwActive)return;
   const answer=inp.value.trim().toUpperCase().replace(/[\s\-]/g,'');
-  if(!answer) return;
-  const correct=cwActive.word.clean;
-  if(answer===correct){
-    cwActive.solved=true;
-    foundWords.add(correct);
-    // Fill letters
-    for(let i=0;i<correct.length;i++){
+  if(!answer)return;
+  resetIdleTimer();
+  if(answer===cwActive.word.clean){
+    cwActive.solved=true;foundWords.add(cwActive.word.clean);
+    for(let i=0;i<cwActive.word.clean.length;i++){
       const nr=cwActive.row+(cwActive.dir==='V'?i:0);
       const nc=cwActive.col+(cwActive.dir==='H'?i:0);
-      if(cwGrid[nr]?.[nc]) cwGrid[nr][nc].userLetter=correct[i];
-      const lEl=document.getElementById(`cwl_${nr}_${nc}`);
-      if(lEl){ lEl.textContent=correct[i]; lEl.parentElement.classList.add('correct'); }
+      if(cwGrid[nr]?.[nc])cwGrid[nr][nc].userLetter=cwActive.word.clean[i];
+      const el=document.getElementById(`cwl_${nr}_${nc}`);
+      if(el){el.textContent=cwActive.word.clean[i];el.parentElement.classList.add('correct');}
     }
-    document.getElementById('scoreDisplay').textContent=foundWords.size+' / '+puzzleWords.length;
-    inp.value=''; cwActive=null;
-    renderCrosswordClues();
-    if(foundWords.size===puzzleWords.length) setTimeout(showResult,500);
+    inp.value='';cwActive=null;
+    playCorrect();updateScore();renderCrosswordClues();
+    if(foundWords.size===puzzleWords.length)setTimeout(showResult,600);
   } else {
-    // Shake input
+    playWrong();
     inp.style.borderColor='var(--danger)';
     setTimeout(()=>inp.style.borderColor='var(--g3)',800);
-    if(!wrongWords.find(w=>w.word_id===cwActive.word.word_id)) wrongWords.push(cwActive.word);
+    if(!wrongWords.find(w=>w.word_id===cwActive.word.word_id))wrongWords.push(cwActive.word);
   }
 }
 
@@ -652,51 +836,53 @@ function checkCWAnswer(){
 // RESULT
 // ============================================================
 function showResult(){
-  const total=puzzleWords.length;
-  const score=foundWords.size;
-  const pass=score>=PASS;
+  const total=puzzleWords.length,score=foundWords.size,pass=score>=PASS;
+  stopBgMusic();
+  if(puzzleType==='wordsearch')
+    wrongWords=wsWordPlacements.filter(p=>!foundWords.has(p.word.clean)&&p.word.word_id!==giftedWordId).map(p=>p.word);
+  api({action:'updateRecord',record_id:recordId,score:score+'/'+total,
+    wrong_words:wrongWords.map(w=>w.word_id).join(','),status:pass?'word_hunt_done':'word_hunt_failed'});
 
-  // Determine wrong words (not found)
-  if(puzzleType==='wordsearch'){
-    wrongWords=wsWordPlacements.filter(p=>!foundWords.has(p.word.clean)).map(p=>p.word);
-  }
+  if(pass){playWin();spawnConfetti();}else playWrong();
 
-  // Save to sheet
-  api({action:'updateRecord',record_id:recordId,
-    score:score+'/'+total,
-    wrong_words:wrongWords.map(w=>w.word_id).join(','),
-    status: pass?'word_hunt_done':'word_hunt_failed'
-  });
-
-  // Show result
-  const ov=document.getElementById('resultOverlay'); ov.classList.add('show');
+  const ov=document.getElementById('resultOverlay');ov.classList.add('show');
   document.getElementById('resultEmoji').textContent=pass?'🎉':'😅';
-  document.getElementById('resultTitle').textContent=pass?'Excellent! You passed!':'Keep trying!';
-  document.getElementById('resultScore').textContent=score+' / '+total+(pass?' ✅':' ❌ (need '+PASS+'/'+total+')');
+  document.getElementById('resultTitle').textContent=pass?'Amazing! You passed! 🌟':'So close! Try again!';
+  document.getElementById('resultScore').textContent=score+'/'+total+(pass?' ✅':' (need '+PASS+'/'+total+')');
 
-  if(wrongWords.length>0){
-    const box=document.getElementById('wrongWordsBox'); box.style.display='block';
-    const list=document.getElementById('wrongWordsList');
-    list.innerHTML='';
-    wrongWords.forEach(w=>{const d=document.createElement('div');d.className='wrong-word-item';d.textContent=w.word+(w.definition_en?' — '+w.definition_en.slice(0,40):'');list.appendChild(d);});
+  if(wrongWords.length){
+    document.getElementById('wrongBox').style.display='block';
+    const list=document.getElementById('wrongList');list.innerHTML='';
+    wrongWords.forEach(w=>{const d=document.createElement('div');d.className='wrong-item';d.textContent=w.word+(w.definition_en?' — '+w.definition_en.slice(0,40):'');list.appendChild(d);});
   }
 
-  const btns=document.getElementById('resultBtns'); btns.innerHTML='';
+  const btns=document.getElementById('resultBtns');btns.innerHTML='';
   if(!pass){
     const redo=document.createElement('button');redo.className='btn-redo';redo.textContent='Try again 🔄';
-    redo.onclick=()=>{ov.classList.remove('show');foundWords.clear();wrongWords=[];
-      if(puzzleType==='wordsearch')buildWordSearch();else buildCrossword();};
+    redo.onclick=()=>{ov.classList.remove('show');foundWords.clear();wrongWords=[];hintsLeft=MAX_HINTS;buildHintDots();
+      if(puzzleType==='wordsearch')buildWordSearch(true);else{cwActive=null;buildCrossword(true);}startBgMusic();};
     btns.appendChild(redo);
   } else {
-    const next=document.createElement('button');next.className='btn-next';next.textContent='Continue to next task ➜';
-    next.onclick=goNext; btns.appendChild(next);
+    const next=document.createElement('button');next.className='btn-next';next.textContent='Next task ➜';next.onclick=goNext;btns.appendChild(next);
   }
-  const stop=document.createElement('button');stop.className='btn-stop';stop.textContent='Stop here for today';
-  stop.onclick=()=>openModal('exitModal'); btns.appendChild(stop);
+  const stop=document.createElement('button');stop.className='btn-stop';stop.textContent='Stop here';stop.onclick=()=>openModal('exitModal');btns.appendChild(stop);
+}
+
+function spawnConfetti(){
+  const wrap=document.getElementById('confettiWrap');wrap.innerHTML='';
+  const colors=['#4A9A3A','#6AAF45','#F59E0B','#3B82F6','#EC4899','#8B5CF6'];
+  for(let i=0;i<60;i++){
+    const p=document.createElement('div');p.className='confetti-piece';
+    p.style.cssText=`left:${Math.random()*100}%;background:${colors[Math.floor(Math.random()*colors.length)]};
+      width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;border-radius:${Math.random()>0.5?'50%':'2px'};
+      --dur:${1.5+Math.random()*2}s;--delay:${Math.random()*1.5}s;`;
+    wrap.appendChild(p);
+  }
+  setTimeout(()=>wrap.innerHTML='',5000);
 }
 
 function goNext(){
-  const taskDefs=[{id:'T1'},{id:'T2'},{id:'T3',page:'task3.html'},{id:'T4',page:'task4.html'},{id:'T5',page:'task5.html'}];
+  const taskDefs=[null,null,{page:'task3.html'},{page:'task4.html'},{page:'task5.html'}];
   const order=setup.task_order||[0,1,2,3,4];
   const enabled=setup.task_enabled||[true,true,true,true,true];
   const t2pos=order.indexOf(1);
@@ -707,21 +893,13 @@ function goNext(){
   window.location.href='index.html';
 }
 
-// Exit with PIN
 async function confirmExit(){
-  const pin=document.getElementById('exitPin').value.trim();
-  if(!pin)return;
+  const pin=document.getElementById('exitPin').value.trim();if(!pin)return;
   const res=await api({action:'verifyPin',pin});
-  if(res.verified){
-    await api({action:'updateRecord',record_id:recordId,status:'paused'});
-    window.location.href='index.html';
-  } else {
-    document.getElementById('exitErr').classList.add('show');
-    document.getElementById('exitPin').value='';
-  }
+  if(res.verified){stopBgMusic();await api({action:'updateRecord',record_id:recordId,status:'paused'});window.location.href='index.html';}
+  else{document.getElementById('exitErr').classList.add('show');document.getElementById('exitPin').value='';}
 }
 
-function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}}
 history.pushState(null,'',location.href);
 window.addEventListener('popstate',()=>history.pushState(null,'',location.href));
 </script>
