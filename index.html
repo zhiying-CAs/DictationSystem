@@ -5,435 +5,276 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Dictation System</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Nunito+Sans:wght@400;600&display=swap');
-
-  :root {
-    --primary:   #4F46E5;
-    --primary-light: #EEF2FF;
-    --primary-dark:  #3730A3;
-    --accent:    #F59E0B;
-    --accent-light: #FEF3C7;
-    --success:   #10B981;
-    --danger:    #EF4444;
-    --bg:        #F8F7FF;
-    --surface:   #FFFFFF;
-    --text:      #1E1B4B;
-    --muted:     #6B7280;
-    --border:    #E0E7FF;
-    --radius:    16px;
-    --shadow:    0 4px 24px rgba(79,70,229,0.10);
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-
-  html, body {
-    height: 100%;
-    background: var(--bg);
-    font-family: 'Nunito Sans', sans-serif;
-    color: var(--text);
-    overflow-x: hidden;
-  }
-
-  /* ---- STARS BACKGROUND ---- */
-  .stars {
-    position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden;
-  }
-  .star {
-    position: absolute; border-radius: 50%; background: var(--primary);
-    opacity: 0; animation: twinkle var(--d) var(--delay) infinite;
-  }
-  @keyframes twinkle {
-    0%,100% { opacity: 0; transform: scale(0.5); }
-    50%      { opacity: 0.18; transform: scale(1); }
-  }
-
-  /* ---- LAYOUT ---- */
-  .page {
-    position: relative; z-index: 1;
-    min-height: 100vh;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    padding: 24px 16px;
-  }
-
-  /* ---- HEADER ---- */
-  .header {
-    text-align: center; margin-bottom: 32px;
-  }
-  .logo-ring {
-    width: 80px; height: 80px; border-radius: 50%;
-    background: var(--primary);
-    display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 16px;
-    box-shadow: 0 0 0 8px var(--primary-light), 0 0 0 12px rgba(79,70,229,0.12);
-    font-size: 36px;
-  }
-  .app-name {
-    font-family: 'Nunito', sans-serif;
-    font-size: clamp(26px, 6vw, 38px);
-    font-weight: 900;
-    color: var(--primary);
-    letter-spacing: -0.5px;
-    line-height: 1.1;
-  }
-  .app-tagline {
-    font-size: 14px; color: var(--muted); margin-top: 6px; font-weight: 600; letter-spacing: 0.5px;
-  }
-
-  /* ---- CARD ---- */
-  .card {
-    background: var(--surface);
-    border-radius: var(--radius);
-    border: 1.5px solid var(--border);
-    box-shadow: var(--shadow);
-    padding: 28px 24px;
-    width: 100%; max-width: 420px;
-  }
-
-  /* ---- TABS ---- */
-  .tab-bar {
-    display: grid; grid-template-columns: 1fr 1fr 1fr;
-    background: var(--bg); border-radius: 12px; padding: 4px;
-    margin-bottom: 24px; gap: 2px;
-  }
-  .tab-btn {
-    padding: 9px 4px; border: none; background: transparent;
-    border-radius: 9px; font-family: 'Nunito', sans-serif;
-    font-size: 12px; font-weight: 700; color: var(--muted);
-    cursor: pointer; transition: all 0.2s; letter-spacing: 0.2px;
-  }
-  .tab-btn.active {
-    background: var(--surface); color: var(--primary);
-    box-shadow: 0 2px 8px rgba(79,70,229,0.12);
-  }
-
-  /* ---- FORM ---- */
-  .form-section { display: none; }
-  .form-section.active { display: block; }
-
-  .field { margin-bottom: 16px; }
-  .field label {
-    display: block; font-size: 13px; font-weight: 700;
-    color: var(--text); margin-bottom: 6px; letter-spacing: 0.3px;
-  }
-  .field input, .field select {
-    width: 100%; padding: 13px 14px;
-    border: 1.5px solid var(--border); border-radius: 10px;
-    font-family: 'Nunito Sans', sans-serif; font-size: 15px;
-    color: var(--text); background: var(--bg);
-    outline: none; transition: border 0.2s;
-    appearance: none; -webkit-appearance: none;
-  }
-  .field input:focus, .field select:focus {
-    border-color: var(--primary); background: #fff;
-  }
-  .field input::placeholder { color: #C4B5FD; }
-
-  /* ---- BUTTONS ---- */
-  .btn {
-    width: 100%; padding: 15px;
-    border: none; border-radius: 12px;
-    font-family: 'Nunito', sans-serif; font-size: 16px; font-weight: 800;
-    cursor: pointer; transition: all 0.18s; letter-spacing: 0.3px;
-  }
-  .btn-primary {
-    background: var(--primary); color: #fff;
-    box-shadow: 0 4px 14px rgba(79,70,229,0.3);
-  }
-  .btn-primary:hover   { background: var(--primary-dark); transform: translateY(-1px); }
-  .btn-primary:active  { transform: translateY(1px); box-shadow: none; }
-  .btn-secondary {
-    background: var(--accent-light); color: #92400E;
-    margin-top: 10px;
-  }
-  .btn-secondary:hover { background: #FDE68A; }
-
-  /* ---- DIVIDER ---- */
-  .divider {
-    display: flex; align-items: center; gap: 10px;
-    margin: 20px 0; color: var(--muted); font-size: 12px; font-weight: 700;
-  }
-  .divider::before, .divider::after {
-    content: ''; flex: 1; height: 1px; background: var(--border);
-  }
-
-  /* ---- RESUME BOX ---- */
-  .resume-hint {
-    background: var(--primary-light); border-radius: 10px;
-    padding: 12px 14px; margin-bottom: 16px;
-    font-size: 13px; color: var(--primary-dark); font-weight: 600;
-    display: flex; gap: 8px; align-items: flex-start;
-  }
-  .resume-hint .icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
-
-  /* ---- ERROR / SUCCESS ---- */
-  .msg {
-    padding: 11px 14px; border-radius: 10px;
-    font-size: 13px; font-weight: 700; margin-bottom: 14px; display: none;
-  }
-  .msg.error   { background: #FEE2E2; color: #991B1B; display: block; }
-  .msg.success { background: #D1FAE5; color: #065F46; display: block; }
-
-  /* ---- LOADING OVERLAY ---- */
-  .overlay {
-    position: fixed; inset: 0; background: rgba(248,247,255,0.92);
-    z-index: 100; display: none;
-    flex-direction: column; align-items: center; justify-content: center; gap: 16px;
-  }
-  .overlay.show { display: flex; }
-  .spinner {
-    width: 48px; height: 48px; border-radius: 50%;
-    border: 4px solid var(--border);
-    border-top-color: var(--primary);
-    animation: spin 0.8s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .overlay-text {
-    font-family: 'Nunito', sans-serif; font-size: 16px;
-    font-weight: 700; color: var(--primary);
-  }
-
-  /* ---- FOOTER ---- */
-  .footer {
-    text-align: center; margin-top: 24px;
-    font-size: 12px; color: var(--muted);
-  }
-
-  /* ---- RESPONSIVE ---- */
-  @media (max-width: 400px) {
-    .card { padding: 22px 16px; }
-    .tab-btn { font-size: 11px; padding: 8px 2px; }
-  }
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+:root {
+  --g1:#1E5C1E; --g2:#2D7D2D; --g3:#4A9A3A; --g4:#6AAF45; --g5:#8DC63F; --g6:#C5E8A0; --g7:#EAF7D8;
+  --white:#FFFFFF; --text:#1A3A1A; --muted:#5A7A5A; --border:#C8E6B0;
+  --shadow:0 8px 32px rgba(45,109,45,0.15); --radius:18px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{min-height:100vh;font-family:'Nunito',sans-serif;background:var(--g7);color:var(--text);overflow-x:hidden;}
+.bg-blobs{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+.blob{position:absolute;border-radius:50%;filter:blur(60px);opacity:0.18;animation:float var(--dur) ease-in-out infinite alternate;}
+.blob1{width:380px;height:380px;background:var(--g3);top:-80px;right:-80px;--dur:7s;}
+.blob2{width:300px;height:300px;background:var(--g4);bottom:-60px;left:-60px;--dur:9s;}
+.blob3{width:200px;height:200px;background:var(--g5);top:40%;left:60%;--dur:6s;}
+@keyframes float{from{transform:translate(0,0) scale(1);}to{transform:translate(20px,30px) scale(1.08);}}
+.leaves{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+.leaf{position:absolute;font-size:var(--s);animation:leaffall var(--d) linear var(--delay) infinite;opacity:0.3;}
+@keyframes leaffall{0%{transform:translateY(-20px) rotate(0deg);opacity:0;}10%{opacity:0.3;}90%{opacity:0.2;}100%{transform:translateY(100vh) rotate(360deg);opacity:0;}}
+.topbar{position:relative;z-index:10;display:flex;align-items:center;padding:14px 20px 10px;}
+.logo-img{height:44px;object-fit:contain;}
+.page{position:relative;z-index:1;min-height:calc(100vh - 68px);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px 16px 32px;}
+.hero{text-align:center;margin-bottom:28px;}
+.hero-icon{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--g2),var(--g4));display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 14px;box-shadow:0 4px 20px rgba(45,125,45,0.35);animation:pulse 2.5s ease-in-out infinite;}
+@keyframes pulse{0%,100%{box-shadow:0 4px 20px rgba(45,125,45,0.35);}50%{box-shadow:0 4px 32px rgba(45,125,45,0.55);transform:scale(1.04);}}
+.hero-title{font-size:clamp(24px,6vw,34px);font-weight:900;color:var(--g1);letter-spacing:-0.5px;line-height:1.1;}
+.hero-sub{font-size:13px;color:var(--muted);margin-top:5px;font-weight:700;letter-spacing:1px;}
+.card{background:var(--white);border-radius:var(--radius);border:1.5px solid var(--border);box-shadow:var(--shadow);width:100%;max-width:440px;overflow:hidden;}
+.step-header{background:linear-gradient(135deg,var(--g2),var(--g3));padding:16px 22px 14px;color:white;}
+.step-label{font-size:11px;font-weight:800;letter-spacing:2px;opacity:0.8;text-transform:uppercase;}
+.step-title{font-size:18px;font-weight:900;margin-top:2px;}
+.card-body{padding:22px 22px 24px;}
+.choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:4px;}
+.choice-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:22px 12px;border-radius:14px;border:2px solid var(--border);background:var(--g7);cursor:pointer;transition:all 0.2s;font-family:'Nunito',sans-serif;text-align:center;}
+.choice-btn:hover,.choice-btn:active{border-color:var(--g3);background:white;box-shadow:0 4px 16px rgba(45,125,45,0.18);transform:translateY(-2px);}
+.choice-icon{font-size:34px;line-height:1;}
+.choice-label{font-size:14px;font-weight:800;color:var(--g1);}
+.choice-desc{font-size:11px;color:var(--muted);font-weight:600;line-height:1.4;}
+.field{margin-bottom:15px;}
+.field label{display:block;font-size:12px;font-weight:800;color:var(--muted);margin-bottom:6px;letter-spacing:0.5px;text-transform:uppercase;}
+.field select,.field input{width:100%;padding:13px 14px;border:1.5px solid var(--border);border-radius:12px;font-family:'Nunito',sans-serif;font-size:15px;font-weight:600;color:var(--text);background:var(--g7);outline:none;transition:all 0.2s;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235A7A5A' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px;}
+.field input{background-image:none;padding-right:14px;}
+.field select:focus,.field input:focus{border-color:var(--g3);background:white;box-shadow:0 0 0 3px rgba(74,154,58,0.12);}
+.field select:disabled{opacity:0.5;cursor:not-allowed;}
+.class-badge{display:inline-block;background:var(--g6);color:var(--g1);font-size:15px;font-weight:800;padding:10px 18px;border-radius:10px;border:1.5px solid var(--g4);}
+.resume-hint{background:var(--g7);border:1.5px solid var(--border);border-radius:12px;padding:13px 15px;margin-bottom:16px;font-size:13px;color:var(--g1);font-weight:700;display:flex;gap:10px;align-items:flex-start;}
+.resume-hint .ic{font-size:20px;flex-shrink:0;}
+.btn{width:100%;padding:15px;border:none;border-radius:13px;font-family:'Nunito',sans-serif;font-size:16px;font-weight:900;cursor:pointer;transition:all 0.18s;letter-spacing:0.3px;display:flex;align-items:center;justify-content:center;gap:8px;}
+.btn-primary{background:linear-gradient(135deg,var(--g2),var(--g3));color:white;box-shadow:0 4px 16px rgba(45,125,45,0.3);}
+.btn-primary:hover{box-shadow:0 6px 20px rgba(45,125,45,0.4);transform:translateY(-1px);}
+.btn-primary:active{transform:translateY(1px);box-shadow:none;}
+.btn-primary:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
+.btn-ghost{background:transparent;color:var(--muted);border:1.5px solid var(--border);margin-top:10px;font-size:14px;}
+.btn-ghost:hover{background:var(--g7);color:var(--g1);border-color:var(--g4);}
+.back-link{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;margin-bottom:16px;width:fit-content;padding:4px 0;}
+.back-link:hover{color:var(--g2);}
+.divider{display:flex;align-items:center;gap:10px;margin:16px 0;color:var(--muted);font-size:12px;font-weight:700;}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border);}
+.msg{padding:11px 14px;border-radius:10px;font-size:13px;font-weight:700;margin-bottom:14px;display:none;}
+.msg.error{background:#FEE2E2;color:#991B1B;display:block;}
+.msg.success{background:#D1FAE5;color:#065F46;display:block;}
+.overlay{position:fixed;inset:0;background:rgba(234,247,216,0.92);z-index:100;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;}
+.overlay.show{display:flex;}
+.spinner{width:48px;height:48px;border-radius:50%;border:4px solid var(--border);border-top-color:var(--g2);animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.overlay-text{font-size:16px;font-weight:800;color:var(--g1);}
+.screen{display:none;animation:fadeUp 0.3s ease both;}
+.screen.active{display:block;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+.footer{text-align:center;margin-top:20px;font-size:12px;color:var(--muted);font-weight:600;}
+@media(max-width:380px){.choice-grid{grid-template-columns:1fr;}.card-body{padding:18px 16px 20px;}}
 </style>
 </head>
 <body>
+<div class="bg-blobs"><div class="blob blob1"></div><div class="blob blob2"></div><div class="blob blob3"></div></div>
+<div class="leaves" id="leaves"></div>
+<div class="overlay" id="overlay"><div class="spinner"></div><div class="overlay-text" id="overlayText">Loading...</div></div>
 
-<!-- Stars -->
-<div class="stars" id="stars"></div>
-
-<!-- Loading overlay -->
-<div class="overlay" id="overlay">
-  <div class="spinner"></div>
-  <div class="overlay-text" id="overlayText">Loading...</div>
+<div class="topbar">
+  <img src="ZPS_header_75pc.jpg" alt="Zhicheng Private School" class="logo-img"
+       onerror="this.style.display='none';document.getElementById('logoText').style.display='block'">
+  <span id="logoText" style="display:none;font-size:16px;font-weight:900;color:var(--g1);">🌿 ZHICHENG</span>
 </div>
 
 <div class="page">
-  <div class="header">
-    <div class="logo-ring">📖</div>
-    <div class="app-name" id="appName">Dictation System</div>
-    <div class="app-tagline">SPELL · HUNT · DROP · CHECK · DETECT</div>
+  <div class="hero">
+    <div class="hero-icon">📖</div>
+    <div class="hero-title" id="appName">Dictation System</div>
+    <div class="hero-sub">SPELL · HUNT · DROP · CHECK · DETECT</div>
   </div>
 
   <div class="card">
-    <!-- Tab bar -->
-    <div class="tab-bar">
-      <button class="tab-btn active" onclick="switchTab('zps')">ZPS Student</button>
-      <button class="tab-btn"       onclick="switchTab('guest')">Guest</button>
-      <button class="tab-btn"       onclick="switchTab('resume')">Continue</button>
+    <!-- SCREEN 1 -->
+    <div class="screen active" id="screen-choose">
+      <div class="step-header"><div class="step-label">Welcome</div><div class="step-title">Who are you? 👋</div></div>
+      <div class="card-body">
+        <div class="msg" id="msg-choose"></div>
+        <div class="choice-grid">
+          <div class="choice-btn" onclick="goScreen('screen-zps')">
+            <div class="choice-icon">🏫</div>
+            <div class="choice-label">ZPS Student</div>
+            <div class="choice-desc">Zhicheng Private School student</div>
+          </div>
+          <div class="choice-btn" onclick="goScreen('screen-guest')">
+            <div class="choice-icon">🌟</div>
+            <div class="choice-label">Guest</div>
+            <div class="choice-desc">Visiting or non-ZPS student</div>
+          </div>
+        </div>
+        <div class="divider">already started?</div>
+        <button class="btn btn-ghost" onclick="goScreen('screen-resume')">🔖 Continue my session</button>
+      </div>
     </div>
 
-    <!-- Error / success message -->
-    <div class="msg" id="msg"></div>
-
-    <!-- ZPS Login -->
-    <div class="form-section active" id="tab-zps">
-      <div class="field">
-        <label>Your full name</label>
-        <input type="text" id="zpsName" placeholder="e.g. Tan Mei Ling" autocomplete="off">
+    <!-- SCREEN 2: ZPS -->
+    <div class="screen" id="screen-zps">
+      <div class="step-header"><div class="step-label">ZPS Student</div><div class="step-title">Find your name 🔍</div></div>
+      <div class="card-body">
+        <div class="back-link" onclick="goScreen('screen-choose')">← Back</div>
+        <div class="msg" id="msg-zps"></div>
+        <div class="field">
+          <label>Your teacher</label>
+          <select id="zpsTeacher" onchange="onTeacherChange()">
+            <option value="">— Select your teacher —</option>
+          </select>
+        </div>
+        <div class="field" id="field-class" style="display:none">
+          <label>Your class</label>
+          <div id="classDisplay" class="class-badge">—</div>
+        </div>
+        <div class="field" id="field-student" style="display:none">
+          <label>Your name</label>
+          <select id="zpsStudent" onchange="document.getElementById('btnZPS').disabled=!this.value">
+            <option value="">— Select your name —</option>
+          </select>
+        </div>
+        <div style="margin-top:18px">
+          <button class="btn btn-primary" id="btnZPS" onclick="loginZPS()" disabled>Let's go! 🚀</button>
+        </div>
       </div>
-      <div class="field">
-        <label>Your class</label>
-        <input type="text" id="zpsClass" placeholder="e.g. 3A" autocomplete="off">
-      </div>
-      <button class="btn btn-primary" onclick="loginZPS()">Start ➜</button>
     </div>
 
-    <!-- Guest Login -->
-    <div class="form-section" id="tab-guest">
-      <div class="resume-hint">
-        <span class="icon">👋</span>
-        <span>Guest students — just enter your name to begin. Your progress will still be saved!</span>
+    <!-- SCREEN 3: Guest -->
+    <div class="screen" id="screen-guest">
+      <div class="step-header"><div class="step-label">Guest</div><div class="step-title">Enter your name ✏️</div></div>
+      <div class="card-body">
+        <div class="back-link" onclick="goScreen('screen-choose')">← Back</div>
+        <div class="msg" id="msg-guest"></div>
+        <div class="resume-hint"><span class="ic">💡</span><span>Your progress will still be saved. Write down your session code when it appears!</span></div>
+        <div class="field">
+          <label>Your name</label>
+          <input type="text" id="guestName" placeholder="Type your name here..." autocomplete="off">
+        </div>
+        <button class="btn btn-primary" onclick="loginGuest()">Let's go! 🚀</button>
       </div>
-      <div class="field">
-        <label>Your name</label>
-        <input type="text" id="guestName" placeholder="e.g. Ahmad" autocomplete="off">
-      </div>
-      <button class="btn btn-primary" onclick="loginGuest()">Start ➜</button>
     </div>
 
-    <!-- Resume Session -->
-    <div class="form-section" id="tab-resume">
-      <div class="resume-hint">
-        <span class="icon">🔖</span>
-        <span>Enter the session code from your worksheet to continue where you left off.</span>
+    <!-- SCREEN 4: Resume -->
+    <div class="screen" id="screen-resume">
+      <div class="step-header"><div class="step-label">Continue Session</div><div class="step-title">Enter your code 🔖</div></div>
+      <div class="card-body">
+        <div class="back-link" onclick="goScreen('screen-choose')">← Back</div>
+        <div class="msg" id="msg-resume"></div>
+        <div class="resume-hint"><span class="ic">📝</span><span>Your session code is on your worksheet — looks like <strong>SS-2606-0042</strong></span></div>
+        <div class="field">
+          <label>Session code</label>
+          <input type="text" id="resumeCode" placeholder="e.g. SS-2606-0042" autocomplete="off"
+            style="text-transform:uppercase;letter-spacing:2px;font-size:17px;font-weight:800;font-family:monospace">
+        </div>
+        <button class="btn btn-primary" onclick="resumeSession()">Continue ➜</button>
+        <button class="btn btn-ghost" onclick="goScreen('screen-choose')">← Back to start</button>
       </div>
-      <div class="field">
-        <label>Session code</label>
-        <input type="text" id="resumeCode" placeholder="e.g. SS-2606-0042"
-               autocomplete="off" style="text-transform:uppercase; letter-spacing:1px; font-family:monospace; font-size:17px;">
-      </div>
-      <button class="btn btn-primary" onclick="resumeSession()">Continue ➜</button>
-      <div class="divider">or start fresh</div>
-      <button class="btn btn-secondary" onclick="switchTab('zps')">New session</button>
     </div>
   </div>
 
-  <div class="footer">
-    All tasks are locked to this screen. Ask your teacher to exit.
-  </div>
+  <div class="footer">All tasks are locked to this screen. Ask your teacher to exit.</div>
 </div>
 
 <script>
-// ============================================================
-const API = 'https://script.google.com/macros/s/AKfycbw76QSB-lv4pA-6s_m6vNk_oGEdeLqrsqkoBGu6j-XMulb-maiAGkqqhfqqEmGfcbn3Ow/exec';
+const API='https://script.google.com/macros/s/AKfycbw76QSB-lv4pA-6s_m6vNk_oGEdeLqrsqkoBGu6j-XMulb-maiAGkqqhfqqEmGfcbn3Ow/exec';
+let allStudents=[];
 
-// ---- Generate stars ----
-(function() {
-  const container = document.getElementById('stars');
-  for (let i = 0; i < 40; i++) {
-    const s = document.createElement('div');
-    s.className = 'star';
-    const size = Math.random() * 4 + 2;
-    s.style.cssText = `
-      width:${size}px; height:${size}px;
-      left:${Math.random()*100}%;
-      top:${Math.random()*100}%;
-      --d:${(Math.random()*3+2).toFixed(1)}s;
-      --delay:-${(Math.random()*4).toFixed(1)}s;
-    `;
-    container.appendChild(s);
+(function(){
+  const c=document.getElementById('leaves');
+  const em=['🍃','🌿','🍀','🌱'];
+  for(let i=0;i<18;i++){
+    const l=document.createElement('div');l.className='leaf';
+    l.textContent=em[Math.floor(Math.random()*em.length)];
+    const s=(Math.random()*16+12).toFixed(0)+'px';
+    l.style.cssText=`left:${Math.random()*100}%;--s:${s};--d:${(Math.random()*12+8).toFixed(1)}s;--delay:-${(Math.random()*12).toFixed(1)}s`;
+    c.appendChild(l);
   }
 })();
 
-// ---- Tab switching ----
-function switchTab(name) {
-  document.querySelectorAll('.tab-btn').forEach((b,i) => {
-    b.classList.toggle('active', ['zps','guest','resume'][i] === name);
-  });
-  document.querySelectorAll('.form-section').forEach(s => s.classList.remove('active'));
-  document.getElementById('tab-' + name).classList.add('active');
-  clearMsg();
+function goScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.msg').forEach(m=>m.className='msg');
+}
+function showMsg(id,text,type){const el=document.getElementById(id);el.textContent=text;el.className='msg '+type;}
+function showLoading(t){document.getElementById('overlayText').textContent=t||'Loading...';document.getElementById('overlay').classList.add('show');}
+function hideLoading(){document.getElementById('overlay').classList.remove('show');}
+async function api(p){const q=new URLSearchParams(p).toString();const r=await fetch(API+'?'+q);return r.json();}
+
+async function loadStudents(){
+  try{const d=await api({action:'getStudents'});if(d.success)allStudents=d.data;else allStudents=[];}
+  catch(e){allStudents=[];}
+  const teachers=[...new Set(allStudents.map(s=>s.teacher).filter(Boolean))].sort();
+  const sel=document.getElementById('zpsTeacher');
+  sel.innerHTML='<option value="">— Select your teacher —</option>';
+  teachers.forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;sel.appendChild(o);});
 }
 
-// ---- Message helpers ----
-function showMsg(text, type) {
-  const el = document.getElementById('msg');
-  el.textContent = text;
-  el.className = 'msg ' + type;
-}
-function clearMsg() {
-  const el = document.getElementById('msg');
-  el.className = 'msg';
-}
-
-// ---- Overlay ----
-function showLoading(text) {
-  document.getElementById('overlayText').textContent = text || 'Loading...';
-  document.getElementById('overlay').classList.add('show');
-}
-function hideLoading() {
-  document.getElementById('overlay').classList.remove('show');
+function onTeacherChange(){
+  const teacher=document.getElementById('zpsTeacher').value;
+  const fc=document.getElementById('field-class');
+  const fs=document.getElementById('field-student');
+  const btn=document.getElementById('btnZPS');
+  if(!teacher){fc.style.display='none';fs.style.display='none';btn.disabled=true;return;}
+  const students=allStudents.filter(s=>s.teacher===teacher).sort((a,b)=>a.name.localeCompare(b.name));
+  const cls=students.length?students[0].class:'—';
+  document.getElementById('classDisplay').textContent=cls;
+  fc.style.display='block';
+  const sel=document.getElementById('zpsStudent');
+  sel.innerHTML='<option value="">— Select your name —</option>';
+  students.forEach(s=>{const o=document.createElement('option');o.value=JSON.stringify(s);o.textContent=s.name;sel.appendChild(o);});
+  fs.style.display='block';
+  btn.disabled=true;
 }
 
-// ---- API call ----
-async function api(params) {
-  const qs = new URLSearchParams(params).toString();
-  const res = await fetch(API + '?' + qs);
-  return res.json();
-}
-
-// ---- ZPS Login ----
-async function loginZPS() {
-  const name  = document.getElementById('zpsName').value.trim();
-  const cls   = document.getElementById('zpsClass').value.trim();
-  if (!name)  { showMsg('Please enter your name.', 'error'); return; }
-  if (!cls)   { showMsg('Please enter your class.', 'error'); return; }
-  clearMsg();
-  showLoading('Checking your details...');
-  try {
-    const data = await api({ action: 'loginStudent', name, class: cls });
-    if (data.success) {
-      saveSession(data.student);
-      goToSetup();
-    } else {
-      showMsg(data.error || 'Not found. Check your name and class.', 'error');
-    }
-  } catch(e) {
-    showMsg('Connection error. Please try again.', 'error');
-  }
+async function loginZPS(){
+  const sel=document.getElementById('zpsStudent');
+  if(!sel.value){showMsg('msg-zps','Please select your name.','error');return;}
+  const student=JSON.parse(sel.value);
+  student.school_type='ZPS';student.language='zh';
+  sessionStorage.setItem('ds_student',JSON.stringify(student));
+  showLoading('Getting your session ready...');
+  await new Promise(r=>setTimeout(r,500));
   hideLoading();
+  window.location.href='setup.html';
 }
 
-// ---- Guest Login ----
-async function loginGuest() {
-  const name = document.getElementById('guestName').value.trim();
-  if (!name) { showMsg('Please enter your name.', 'error'); return; }
-  clearMsg();
+async function loginGuest(){
+  const name=document.getElementById('guestName').value.trim();
+  if(!name){showMsg('msg-guest','Please type your name.','error');return;}
   showLoading('Setting up your session...');
-  try {
-    const data = await api({ action: 'loginStudent', name, guest: 'true' });
-    if (data.success) {
-      saveSession(data.student);
-      goToSetup();
-    } else {
-      showMsg('Something went wrong. Please try again.', 'error');
-    }
-  } catch(e) {
-    showMsg('Connection error. Please try again.', 'error');
-  }
-  hideLoading();
+  try{
+    const d=await api({action:'loginStudent',name,guest:'true'});
+    if(d.success){sessionStorage.setItem('ds_student',JSON.stringify(d.student));hideLoading();window.location.href='setup.html';}
+    else{hideLoading();showMsg('msg-guest',d.error||'Something went wrong.','error');}
+  }catch(e){hideLoading();showMsg('msg-guest','Connection error. Please try again.','error');}
 }
 
-// ---- Resume Session ----
-async function resumeSession() {
-  const code = document.getElementById('resumeCode').value.trim().toUpperCase();
-  if (!code) { showMsg('Please enter your session code.', 'error'); return; }
-  clearMsg();
+async function resumeSession(){
+  const code=document.getElementById('resumeCode').value.trim().toUpperCase();
+  if(!code){showMsg('msg-resume','Please enter your session code.','error');return;}
   showLoading('Finding your session...');
-  try {
-    const data = await api({ action: 'getRecord', record_id: code });
-    if (data.success) {
-      sessionStorage.setItem('ds_resume', JSON.stringify(data.data));
-      window.location.href = 'setup.html';
-    } else {
-      showMsg('Session code not found. Check and try again.', 'error');
-    }
-  } catch(e) {
-    showMsg('Connection error. Please try again.', 'error');
-  }
-  hideLoading();
+  try{
+    const d=await api({action:'getRecord',record_id:code});
+    if(d.success){sessionStorage.setItem('ds_resume',JSON.stringify(d.data));hideLoading();window.location.href='setup.html';}
+    else{hideLoading();showMsg('msg-resume','Session code not found. Check and try again.','error');}
+  }catch(e){hideLoading();showMsg('msg-resume','Connection error. Please try again.','error');}
 }
 
-// ---- Save student to sessionStorage ----
-function saveSession(student) {
-  sessionStorage.setItem('ds_student', JSON.stringify(student));
+async function loadConfig(){
+  try{const d=await api({action:'getConfig'});if(d.success&&d.data.app_name){document.getElementById('appName').textContent=d.data.app_name;document.title=d.data.app_name;sessionStorage.setItem('ds_config',JSON.stringify(d.data));}}catch(e){}
 }
 
-// ---- Go to setup page ----
-function goToSetup() {
-  window.location.href = 'setup.html';
-}
-
-// ---- Load app name from config ----
-async function loadConfig() {
-  try {
-    const data = await api({ action: 'getConfig' });
-    if (data.success && data.data.app_name) {
-      document.getElementById('appName').textContent = data.data.app_name;
-      document.title = data.data.app_name;
-      sessionStorage.setItem('ds_config', JSON.stringify(data.data));
-    }
-  } catch(e) { /* use default name */ }
-}
-
-// ---- Prevent back navigation (lock screen) ----
-history.pushState(null, '', location.href);
-window.addEventListener('popstate', () => {
-  history.pushState(null, '', location.href);
-});
-
-// ---- Init ----
+history.pushState(null,'',location.href);
+window.addEventListener('popstate',()=>history.pushState(null,'',location.href));
 loadConfig();
+loadStudents();
 </script>
 </body>
 </html>
