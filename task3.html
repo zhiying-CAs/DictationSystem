@@ -385,9 +385,22 @@ function webSpeak(text,btn){
     }catch(e){alert('Connection error.');return;}
   }
 
-  const withP=allWords.filter(w=>w.collocations&&w.collocations.trim());
-  shuffle(withP);
-  gameWords=withP.slice(0,Math.min(numPartners,withP.length));
+  // Group collocation rows by target word, then pick ONE random collocation per word.
+  // This keeps the SAME words as Task 1 (connectivity) but avoids the same target
+  // appearing twice with different partners (which caused confusion).
+  const byWord = {};
+  allWords.forEach(w=>{
+    if(!w.collocations || !w.collocations.trim()) return;
+    const key = w.word.toLowerCase().trim();
+    if(!byWord[key]) byWord[key] = [];
+    byWord[key].push(w);
+  });
+  // For each unique word, pick one random collocation row
+  const uniqueWordPartners = Object.values(byWord).map(rows=>{
+    return rows[Math.floor(Math.random()*rows.length)];
+  });
+  shuffle(uniqueWordPartners);
+  gameWords = uniqueWordPartners.slice(0, Math.min(numPartners, uniqueWordPartners.length));
 
   api({action:'updateRecord',record_id:recordId,words_tested:gameWords.map(w=>w.word_id).join(','),status:'pair_drop_started'});
 
@@ -444,13 +457,20 @@ function nextTarget(){
   const correctPartner=getDropWord(target.collocations.trim(),target.word);
   const options=[{text:correctPartner,correct:true}];
   options.push({text:misspell(correctPartner),correct:false});
-  // Other partners as distractors
-  const others=gameWords.filter((w,i)=>i!==currentTargetIdx&&w.collocations);
+  // Other partners as distractors — exclude any with the same target word
+  const others=gameWords.filter((w,i)=>i!==currentTargetIdx
+    && w.collocations
+    && w.word.toLowerCase().trim()!==target.word.toLowerCase().trim());
   shuffle(others);
-  others.slice(0,2).forEach(w=>{
+  const usedTexts=new Set([correctPartner.toLowerCase()]);
+  for(const w of others){
+    if(options.length>=4) break;
     const p=getDropWord(w.collocations.trim(),w.word);
-    options.push({text:p,correct:false});
-  });
+    if(!usedTexts.has(p.toLowerCase())){
+      options.push({text:p,correct:false});
+      usedTexts.add(p.toLowerCase());
+    }
+  }
   shuffle(options);
   dropWords(options);
 }
@@ -536,9 +556,16 @@ function showReviveModal(){
   document.getElementById('reviveQText').textContent=target.collocation_meaning||'Choose the correct partner';
   const correct=getDropWord(target.collocations.trim(),target.word);
   const opts=[correct];
-  const others=gameWords.filter(w=>w.word_id!==target.word_id&&w.collocations);
+  const others=gameWords.filter(w=>w.word_id!==target.word_id
+    && w.collocations
+    && w.word.toLowerCase().trim()!==target.word.toLowerCase().trim());
   shuffle(others);
-  others.slice(0,2).forEach(w=>opts.push(getDropWord(w.collocations.trim(),w.word)));
+  const usedRevive=new Set([correct.toLowerCase()]);
+  for(const w of others){
+    if(opts.length>=3) break;
+    const p=getDropWord(w.collocations.trim(),w.word);
+    if(!usedRevive.has(p.toLowerCase())){opts.push(p);usedRevive.add(p.toLowerCase());}
+  }
   opts.push(misspell(correct));
   shuffle(opts);
   const cont=document.getElementById('reviveOptions');cont.innerHTML='';
