@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Spell Storm ⚡</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+:root {
+  --g1:#1E5C1E;--g2:#2D7D2D;--g3:#4A9A3A;--g4:#6AAF45;--g5:#8DC63F;--g6:#C5E8A0;--g7:#EAF7D8;
+  --white:#FFFFFF;--text:#1A3A1A;--muted:#5A7A5A;--border:#C8E6B0;
+  --shadow:0 8px 32px rgba(45,109,45,0.15);--radius:18px;
+  --danger:#EF4444;--amber:#F59E0B;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;font-family:'Nunito',sans-serif;background:var(--g7);color:var(--text);overflow:hidden;}
+
+/* BG */
+.bg-blobs{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+.blob{position:absolute;border-radius:50%;filter:blur(60px);opacity:0.15;animation:float var(--dur) ease-in-out infinite alternate;}
+.blob1{width:350px;height:350px;background:var(--g3);top:-80px;right:-80px;--dur:7s;}
+.blob2{width:280px;height:280px;background:var(--g4);bottom:-60px;left:-60px;--dur:9s;}
+@keyframes float{from{transform:translate(0,0);}to{transform:translate(20px,25px);}}
+
+/* TOPBAR */
+.topbar{position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:10px 16px 6px;flex-shrink:0;}
+.logo-img{height:36px;object-fit:contain;}
+.session-code{background:var(--white);border:1.5px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:800;color:var(--g1);letter-spacing:1px;font-family:monospace;}
+
+/* MAIN LAYOUT */
+.main{position:relative;z-index:1;height:calc(100vh - 56px);display:flex;flex-direction:column;padding:8px 16px 16px;overflow:hidden;}
+
+/* INFO BAR */
+.info-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-shrink:0;}
+.info-left{font-size:13px;font-weight:700;color:var(--muted);}
+.info-left span{color:var(--g1);}
+.progress-wrap{flex:1;margin:0 12px;height:8px;background:var(--border);border-radius:4px;overflow:hidden;}
+.progress-bar{height:100%;background:linear-gradient(90deg,var(--g3),var(--g4));border-radius:4px;transition:width 0.4s ease;}
+.progress-num{font-size:13px;font-weight:800;color:var(--g2);white-space:nowrap;}
+
+/* TASK BADGE */
+.task-badge{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px;flex-shrink:0;}
+.badge-pill{background:linear-gradient(135deg,var(--g2),var(--g3));color:white;padding:6px 16px;border-radius:20px;font-size:13px;font-weight:800;letter-spacing:0.5px;}
+.student-name{font-size:13px;font-weight:700;color:var(--muted);}
+
+/* WORD CARD */
+.word-card{background:var(--white);border-radius:var(--radius);border:1.5px solid var(--border);box-shadow:var(--shadow);flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;min-height:0;position:relative;overflow:hidden;}
+.word-card.playing{border-color:var(--g3);box-shadow:0 8px 32px rgba(45,125,45,0.25);}
+
+/* Word number */
+.word-num{font-size:12px;font-weight:800;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;}
+
+/* Speaker button */
+.speaker-btn{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--g2),var(--g4));border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:32px;box-shadow:0 4px 16px rgba(45,125,45,0.3);transition:all 0.18s;flex-shrink:0;}
+.speaker-btn:hover{transform:scale(1.06);}
+.speaker-btn:active{transform:scale(0.96);}
+.speaker-btn.playing{animation:speakPulse 0.8s ease-in-out infinite;}
+@keyframes speakPulse{0%,100%{box-shadow:0 4px 16px rgba(45,125,45,0.3);}50%{box-shadow:0 4px 32px rgba(45,125,45,0.6);transform:scale(1.06);}}
+
+.tap-hint{font-size:12px;color:var(--muted);font-weight:600;margin-top:8px;}
+
+/* Definition area */
+.def-area{width:100%;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
+.def-label{font-size:11px;font-weight:800;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;}
+.def-text{font-size:15px;font-weight:600;color:var(--text);line-height:1.5;text-align:center;}
+.pos-badge{display:inline-block;background:var(--g7);border:1px solid var(--border);border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px;}
+
+/* Translation area */
+.trans-area{width:100%;margin-top:10px;}
+.trans-btn{width:100%;padding:9px;border:1.5px solid var(--border);border-radius:10px;background:var(--g7);font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;transition:all 0.18s;display:flex;align-items:center;justify-content:center;gap:6px;}
+.trans-btn.active{border-color:var(--g3);background:white;color:var(--g1);}
+.lang-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px;}
+.lang-btn{padding:8px 4px;border:1.5px solid var(--border);border-radius:10px;background:var(--g7);font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;text-align:center;transition:all 0.18s;}
+.lang-btn.selected{border-color:var(--g3);background:white;color:var(--g1);}
+.trans-text{margin-top:8px;padding:10px 14px;background:var(--g6);border-radius:10px;font-size:16px;font-weight:700;color:var(--g1);text-align:center;line-height:1.4;}
+
+/* CONTROLS */
+.controls{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:12px;flex-shrink:0;}
+.ctrl-btn{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 16px;border:1.5px solid var(--border);border-radius:14px;background:var(--white);cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.18s;flex:1;max-width:100px;}
+.ctrl-btn:hover{background:var(--g7);border-color:var(--g3);}
+.ctrl-btn:active{transform:scale(0.96);}
+.ctrl-btn .icon{font-size:22px;}
+.ctrl-btn .label{font-size:11px;font-weight:800;color:var(--muted);}
+.ctrl-btn:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
+.ctrl-main{flex:1.4;max-width:130px;background:linear-gradient(135deg,var(--g2),var(--g3));border-color:transparent;}
+.ctrl-main .label{color:rgba(255,255,255,0.85);}
+.ctrl-main:hover{background:linear-gradient(135deg,var(--g1),var(--g2));border-color:transparent;}
+
+/* BOTTOM BAR */
+.bottom-bar{display:flex;align-items:center;justify-content:space-between;margin-top:10px;flex-shrink:0;}
+.unit-info{font-size:12px;font-weight:700;color:var(--muted);}
+.exit-btn{font-size:12px;font-weight:700;color:var(--muted);background:none;border:none;cursor:pointer;padding:4px 8px;}
+.exit-btn:hover{color:var(--danger);}
+
+/* OVERLAY */
+.overlay{position:fixed;inset:0;background:rgba(234,247,216,0.95);z-index:100;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;}
+.overlay.show{display:flex;}
+.spinner{width:48px;height:48px;border-radius:50%;border:4px solid var(--border);border-top-color:var(--g2);animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.overlay-text{font-size:16px;font-weight:800;color:var(--g1);text-align:center;}
+
+/* PIN MODAL */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;display:none;align-items:center;justify-content:center;padding:24px;}
+.modal-backdrop.show{display:flex;}
+.modal{background:var(--white);border-radius:var(--radius);padding:24px;width:100%;max-width:360px;box-shadow:0 16px 48px rgba(0,0,0,0.2);}
+.modal h3{font-size:18px;font-weight:900;color:var(--g1);margin-bottom:6px;}
+.modal p{font-size:13px;color:var(--muted);font-weight:600;margin-bottom:16px;}
+.modal input{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:12px;font-family:'Nunito',sans-serif;font-size:20px;font-weight:800;letter-spacing:4px;text-align:center;outline:none;margin-bottom:12px;}
+.modal input:focus{border-color:var(--g3);}
+.modal-btns{display:flex;gap:8px;}
+.modal-btns button{flex:1;padding:12px;border:none;border-radius:12px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;cursor:pointer;}
+.modal-btns .confirm{background:linear-gradient(135deg,var(--g2),var(--g3));color:white;}
+.modal-btns .cancel{background:var(--g7);color:var(--muted);border:1.5px solid var(--border);}
+.modal .msg{font-size:13px;font-weight:700;color:var(--danger);margin-bottom:8px;display:none;}
+.modal .msg.show{display:block;}
+
+/* RESULT SCREEN */
+.result-screen{position:fixed;inset:0;background:var(--g7);z-index:150;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;}
+.result-screen.show{display:flex;}
+.result-emoji{font-size:64px;margin-bottom:16px;animation:bounce 0.6s ease;}
+@keyframes bounce{0%,100%{transform:translateY(0);}50%{transform:translateY(-12px);}}
+.result-title{font-size:28px;font-weight:900;color:var(--g1);margin-bottom:6px;}
+.result-sub{font-size:15px;color:var(--muted);font-weight:600;margin-bottom:24px;}
+.session-box{background:var(--white);border:2px solid var(--g4);border-radius:14px;padding:16px 24px;margin-bottom:24px;width:100%;max-width:320px;}
+.session-box .label{font-size:12px;font-weight:800;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;}
+.session-box .code{font-size:28px;font-weight:900;color:var(--g1);letter-spacing:3px;font-family:monospace;}
+.session-box .hint{font-size:12px;color:var(--muted);font-weight:600;margin-top:4px;}
+.result-btns{display:flex;flex-direction:column;gap:10px;width:100%;max-width:320px;}
+.result-btns button{padding:14px;border:none;border-radius:13px;font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;cursor:pointer;}
+.btn-next-task{background:linear-gradient(135deg,var(--g2),var(--g3));color:white;box-shadow:0 4px 16px rgba(45,125,45,0.3);}
+.btn-stop{background:var(--g7);color:var(--muted);border:1.5px solid var(--border);}
+
+/* PAUSE indicator */
+.paused-badge{position:absolute;top:12px;right:12px;background:var(--amber);color:white;font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px;display:none;}
+.paused-badge.show{display:block;}
+
+@media(max-width:380px){
+  .lang-btn{font-size:10px;padding:6px 2px;}
+  .ctrl-btn{padding:8px 10px;}
+}
+</style>
+</head>
+<body>
+<div class="bg-blobs"><div class="blob blob1"></div><div class="blob blob2"></div></div>
+
+<!-- Loading overlay -->
+<div class="overlay" id="overlay">
+  <div class="spinner"></div>
+  <div class="overlay-text" id="overlayText">Loading Spell Storm...</div>
+</div>
+
+<!-- Exit PIN modal -->
+<div class="modal-backdrop" id="exitModal">
+  <div class="modal">
+    <h3>🔐 Teacher PIN</h3>
+    <p>Enter the teacher PIN to exit this task.</p>
+    <div class="msg" id="exitMsg">Wrong PIN. Try again.</div>
+    <input type="password" id="exitPin" placeholder="••••••" maxlength="10"
+      onkeydown="if(event.key==='Enter') confirmExit()">
+    <div class="modal-btns">
+      <button class="cancel" onclick="closeExitModal()">Cancel</button>
+      <button class="confirm" onclick="confirmExit()">Exit ➜</button>
+    </div>
+  </div>
+</div>
+
+<!-- Result screen -->
+<div class="result-screen" id="resultScreen">
+  <div class="result-emoji">⚡</div>
+  <div class="result-title">Spell Storm done!</div>
+  <div class="result-sub" id="resultSub">You went through all the words.</div>
+  <div class="session-box">
+    <div class="label">Your session code</div>
+    <div class="code" id="resultCode">—</div>
+    <div class="hint">📝 Write this down on your paper!</div>
+  </div>
+  <div class="result-btns">
+    <button class="btn-next-task" id="btnNextTask" onclick="goNextTask()">Continue to next task ➜</button>
+    <button class="btn-stop" onclick="showExitModal('result')">Stop here for today</button>
+  </div>
+</div>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <img src="ZPS_header_75pc.jpg" alt="ZPS" class="logo-img" onerror="this.style.display='none'">
+  <div class="session-code" id="sessionCodeDisplay">—</div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- Info bar -->
+  <div class="info-bar">
+    <div class="info-left">👤 <span id="infoName">—</span></div>
+    <div class="progress-wrap"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
+    <div class="progress-num" id="progressNum">0/0</div>
+  </div>
+
+  <!-- Task badge -->
+  <div class="task-badge">
+    <div class="badge-pill">⚡ Spell Storm</div>
+    <div class="student-name" id="infoMeta">—</div>
+  </div>
+
+  <!-- Word card -->
+  <div class="word-card" id="wordCard">
+    <div class="paused-badge" id="pausedBadge">⏸ PAUSED</div>
+    <div class="word-num" id="wordNum">Word 1</div>
+
+    <button class="speaker-btn" id="speakerBtn" onclick="playCurrentWord()">🔊</button>
+    <div class="tap-hint">Tap to hear the word again</div>
+
+    <!-- Definition (shown if teacher enabled) -->
+    <div class="def-area" id="defArea" style="display:none">
+      <div style="text-align:center">
+        <div class="def-label">Definition</div>
+        <div class="pos-badge" id="posDisplay">noun</div>
+        <div class="def-text" id="defText">—</div>
+      </div>
+    </div>
+
+    <!-- Translation -->
+    <div class="trans-area" id="transArea" style="display:none">
+      <button class="trans-btn" id="transBtnToggle" onclick="toggleTransPanel()">
+        🌐 Show translation
+      </button>
+      <div id="transPanel" style="display:none">
+        <div class="lang-grid" id="langGrid"></div>
+        <div class="trans-text" id="transText" style="display:none">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button class="ctrl-btn" id="btnPrev" onclick="prevWord()">
+      <span class="icon">⏮</span><span class="label">Prev</span>
+    </button>
+    <button class="ctrl-btn ctrl-main" id="btnPause" onclick="togglePause()">
+      <span class="icon" id="pauseIcon">⏸</span><span class="label" id="pauseLabel" style="color:white">Pause</span>
+    </button>
+    <button class="ctrl-btn" id="btnNext" onclick="nextWord()">
+      <span class="icon">⏭</span><span class="label">Next</span>
+    </button>
+  </div>
+
+  <!-- Bottom bar -->
+  <div class="bottom-bar">
+    <div class="unit-info" id="unitInfo">—</div>
+    <button class="exit-btn" onclick="showExitModal('task')">Exit 🔐</button>
+  </div>
+
+</div>
+
+<script>
+const API = 'https://script.google.com/macros/s/AKfycbw76QSB-lv4pA-6s_m6vNk_oGEdeLqrsqkoBGu6j-XMulb-maiAGkqqhfqqEmGfcbn3Ow/exec';
+const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent';
+
+const LANGS = [
+  {code:'zh', label:'中文'},
+  {code:'ms', label:'Malay'},
+  {code:'id', label:'Indonesia'},
+  {code:'vi', label:'Việt'},
+  {code:'th', label:'ภาษาไทย'},
+  {code:'my', label:'မြန်မာ'},
+  {code:'km', label:'ខ្មែរ'},
+  {code:'bn', label:'বাংলা'}
+];
+
+const LANG_KEY = {
+  zh:'translation_zh', ms:'translation_ms', id:'translation_id',
+  vi:'translation_vi', th:'translation_th', my:'translation_my',
+  km:'translation_km', bn:'translation_bn'
+};
+
+let student = {};
+let setup   = {};
+let config  = {};
+let words   = [];
+let currentIdx = 0;
+let isPaused   = false;
+let selectedLang = null;
+let recordId   = '';
+let transOpen  = false;
+let exitTarget = 'task'; // 'task' or 'result'
+let geminiKey  = '';
+
+// ---- Init ----
+(async function(){
+  showLoading('Loading Spell Storm...');
+  student  = JSON.parse(sessionStorage.getItem('ds_student') || '{}');
+  setup    = JSON.parse(sessionStorage.getItem('ds_setup')   || '{}');
+  config   = JSON.parse(sessionStorage.getItem('ds_config')  || '{}');
+  recordId = sessionStorage.getItem('ds_record_id') || '';
+
+  if(!student.name || !setup.series){ window.location.href='index.html'; return; }
+
+  // Display session code
+  document.getElementById('sessionCodeDisplay').textContent = recordId || '—';
+  document.getElementById('resultCode').textContent = recordId || '—';
+  document.getElementById('infoName').textContent = student.name;
+  document.getElementById('infoMeta').textContent = setup.series + ' · ' + setup.level;
+  document.getElementById('unitInfo').textContent =
+    setup.unit_from === setup.unit_to
+      ? 'Unit ' + setup.unit_from + (setup.half !== 'all' ? ' (' + setup.half + ' half)' : '')
+      : 'Units ' + setup.unit_from + '–' + setup.unit_to;
+
+  // Get Gemini key from config
+  geminiKey = config.gemini_api_key || '';
+
+  // Load words
+  try {
+    const res = await api({
+      action:    'getWords',
+      series:    setup.series,
+      level:     setup.level,
+      unit_from: setup.unit_from,
+      unit_to:   setup.unit_to,
+      half:      setup.half || 'all',
+      mode:      'primary'
+    });
+    if(!res.success || !res.data.length){
+      hideLoading();
+      alert('No words found. Please go back and check your selection.');
+      window.location.href = 'setup.html';
+      return;
+    }
+    words = res.data;
+    if(setup.word_order === 'random') shuffle(words);
+  } catch(e){
+    hideLoading();
+    alert('Connection error. Please refresh.');
+    return;
+  }
+
+  buildLangGrid();
+  showWord(0);
+  hideLoading();
+
+  // Auto-play first word after short delay
+  setTimeout(()=> playCurrentWord(), 800);
+})();
+
+// ---- API ----
+async function api(p){ const q=new URLSearchParams(p).toString(); const r=await fetch(API+'?'+q); return r.json(); }
+function showLoading(t){ document.getElementById('overlayText').textContent=t||'Loading...'; document.getElementById('overlay').classList.add('show'); }
+function hideLoading(){ document.getElementById('overlay').classList.remove('show'); }
+
+// ---- Show word ----
+function showWord(idx){
+  if(idx < 0 || idx >= words.length) return;
+  currentIdx = idx;
+  const w = words[idx];
+
+  // Progress
+  const pct = Math.round(((idx+1)/words.length)*100);
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('progressNum').textContent = (idx+1) + '/' + words.length;
+  document.getElementById('wordNum').textContent = 'Word ' + (idx+1);
+
+  // Definition
+  const showDef = (setup.show_definition || config.task1_show_definition_default || 'yes') === 'yes';
+  const defArea = document.getElementById('defArea');
+  if(showDef && w.definition_en){
+    defArea.style.display = 'block';
+    document.getElementById('posDisplay').textContent = w.pos || '';
+    document.getElementById('posDisplay').style.display = w.pos ? 'inline-block' : 'none';
+    document.getElementById('defText').textContent = w.definition_en;
+  } else {
+    defArea.style.display = 'none';
+  }
+
+  // Translation area
+  document.getElementById('transArea').style.display = 'block';
+  // Reset translation
+  transOpen = false;
+  selectedLang = null;
+  document.getElementById('transPanel').style.display = 'none';
+  document.getElementById('transBtnToggle').classList.remove('active');
+  document.getElementById('transBtnToggle').textContent = '🌐 Show translation';
+  document.getElementById('transText').style.display = 'none';
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('selected'));
+
+  // Nav buttons
+  document.getElementById('btnPrev').disabled = (idx === 0);
+  document.getElementById('btnNext').disabled = (idx === words.length - 1);
+
+  // Card animation
+  const card = document.getElementById('wordCard');
+  card.style.opacity = '0';
+  card.style.transform = 'translateY(8px)';
+  setTimeout(()=>{
+    card.style.transition = 'opacity 0.25s, transform 0.25s';
+    card.style.opacity = '1';
+    card.style.transform = 'translateY(0)';
+  }, 50);
+}
+
+// ---- Language grid ----
+function buildLangGrid(){
+  const grid = document.getElementById('langGrid');
+  grid.innerHTML = '';
+  LANGS.forEach(l=>{
+    const btn = document.createElement('button');
+    btn.className = 'lang-btn';
+    btn.textContent = l.label;
+    btn.dataset.code = l.code;
+    btn.onclick = ()=> selectLang(l.code, btn);
+    grid.appendChild(btn);
+  });
+}
+
+function toggleTransPanel(){
+  transOpen = !transOpen;
+  const panel = document.getElementById('transPanel');
+  const btn   = document.getElementById('transBtnToggle');
+  panel.style.display = transOpen ? 'block' : 'none';
+  btn.classList.toggle('active', transOpen);
+  btn.textContent = transOpen ? '🌐 Hide translation' : '🌐 Show translation';
+}
+
+function selectLang(code, el){
+  selectedLang = code;
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('selected'));
+  el.classList.add('selected');
+  const w = words[currentIdx];
+  const key = LANG_KEY[code];
+  const val = w[key] || '';
+  const transText = document.getElementById('transText');
+  if(val){
+    transText.textContent = val;
+    transText.style.display = 'block';
+  } else {
+    transText.textContent = '(no translation available)';
+    transText.style.display = 'block';
+  }
+}
+
+// ---- Audio playback ----
+async function playCurrentWord(){
+  if(isPaused) return;
+  const w = words[currentIdx];
+  const btn = document.getElementById('speakerBtn');
+  btn.classList.add('playing');
+  document.getElementById('wordCard').classList.add('playing');
+
+  try {
+    if(w.audio_file){
+      // Play pre-recorded file
+      const audio = new Audio('audio/' + w.audio_file);
+      audio.onended = ()=>{ btn.classList.remove('playing'); document.getElementById('wordCard').classList.remove('playing'); };
+      audio.onerror = ()=>{ playTTS(w.word, btn); };
+      await audio.play();
+    } else {
+      await playTTS(w.word, btn);
+    }
+  } catch(e){
+    btn.classList.remove('playing');
+    document.getElementById('wordCard').classList.remove('playing');
+  }
+}
+
+async function playTTS(word, btn){
+  const voice = config.gemini_voice || 'Leda';
+  const key   = config.gemini_api_key || geminiKey;
+
+  if(!key){
+    // Fallback to Web Speech API
+    playWebSpeech(word, btn);
+    return;
+  }
+
+  try {
+    const prompt = `Read this English word clearly and naturally, as if speaking to a primary school student: "${word}"`;
+    const resp = await fetch(`${GEMINI_API_BASE}?key=${key}`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        contents:[{parts:[{text:prompt}]}],
+        generationConfig:{
+          responseModalities:['AUDIO'],
+          speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voice}}}
+        }
+      })
+    });
+    const data = await resp.json();
+    const b64  = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    if(!b64) throw new Error('no audio');
+
+    const binary = atob(b64);
+    const bytes  = new Uint8Array(binary.length);
+    for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
+    const wav  = pcmToWav(bytes,24000,1,16);
+    const blob = new Blob([wav],{type:'audio/wav'});
+    const url  = URL.createObjectURL(blob);
+    const audio= new Audio(url);
+    audio.onended = ()=>{ btn.classList.remove('playing'); document.getElementById('wordCard').classList.remove('playing'); };
+    await audio.play();
+  } catch(e){
+    playWebSpeech(word, btn);
+  }
+}
+
+function playWebSpeech(word, btn){
+  if(!window.speechSynthesis){ btn.classList.remove('playing'); return; }
+  const utt = new SpeechSynthesisUtterance(word);
+  utt.lang = 'en-GB'; utt.rate = 0.85;
+  const voices = speechSynthesis.getVoices().filter(v=>v.lang.startsWith('en'));
+  const female = voices.find(v=>/female|zira|samantha|karen|victoria|moira/i.test(v.name));
+  if(female) utt.voice = female;
+  utt.onend = ()=>{ btn.classList.remove('playing'); document.getElementById('wordCard').classList.remove('playing'); };
+  speechSynthesis.speak(utt);
+}
+
+function pcmToWav(pcmData,sampleRate,numChannels,bitsPerSample){
+  const dataLen=pcmData.length;
+  const blockAlign=numChannels*bitsPerSample/8;
+  const byteRate=sampleRate*blockAlign;
+  const buf=new ArrayBuffer(44+dataLen);
+  const view=new DataView(buf);
+  const str=(off,s)=>{for(let i=0;i<s.length;i++)view.setUint8(off+i,s.charCodeAt(i));};
+  str(0,'RIFF');view.setUint32(4,36+dataLen,true);str(8,'WAVE');
+  str(12,'fmt ');view.setUint32(16,16,true);view.setUint16(20,1,true);
+  view.setUint16(22,numChannels,true);view.setUint32(24,sampleRate,true);
+  view.setUint32(28,byteRate,true);view.setUint16(32,blockAlign,true);
+  view.setUint16(34,bitsPerSample,true);str(36,'data');
+  view.setUint32(40,dataLen,true);
+  new Uint8Array(buf).set(pcmData,44);
+  return buf;
+}
+
+// ---- Navigation ----
+function prevWord(){
+  if(currentIdx > 0){ showWord(currentIdx-1); setTimeout(()=>playCurrentWord(),400); }
+}
+function nextWord(){
+  if(currentIdx < words.length-1){ showWord(currentIdx+1); setTimeout(()=>playCurrentWord(),400); }
+  else showResult();
+}
+function togglePause(){
+  isPaused = !isPaused;
+  document.getElementById('pauseIcon').textContent  = isPaused ? '▶️' : '⏸';
+  document.getElementById('pauseLabel').textContent = isPaused ? 'Resume' : 'Pause';
+  document.getElementById('pausedBadge').classList.toggle('show', isPaused);
+  if(isPaused) speechSynthesis.cancel();
+}
+
+// ---- Result ----
+function showResult(){
+  // Save words tested to sheet
+  const wordIds = words.map(w=>w.word_id).join(',');
+  api({action:'updateRecord', record_id:recordId, words_tested:wordIds, status:'spell_storm_done'});
+
+  // Show result screen
+  document.getElementById('resultScreen').classList.add('show');
+  document.getElementById('resultCode').textContent = recordId;
+
+  // Set next task button label
+  const nextTask = getNextTask();
+  const btnNext  = document.getElementById('btnNextTask');
+  if(nextTask){ btnNext.textContent = 'Continue to ' + nextTask.name + ' ' + nextTask.emoji; }
+  else { btnNext.style.display='none'; }
+}
+
+function getNextTask(){
+  const taskDefs = [
+    {id:'T1',name:'Spell Storm',emoji:'⚡'},
+    {id:'T2',name:'Word Hunt',emoji:'🔍'},
+    {id:'T3',name:'Pair Drop',emoji:'🎯'},
+    {id:'T4',name:'Mind Check',emoji:'🧠'},
+    {id:'T5',name:'Word Detective',emoji:'🕵️'},
+  ];
+  const order   = setup.task_order   || [0,1,2,3,4];
+  const enabled = setup.task_enabled || [true,true,true,true,true];
+  const t1pos   = order.indexOf(0);
+  for(let i=t1pos+1; i<order.length; i++){
+    const idx = order[i];
+    if(enabled[idx]) return taskDefs[idx];
+  }
+  return null;
+}
+
+function goNextTask(){
+  const next = getNextTask();
+  if(!next){ window.location.href='index.html'; return; }
+  const pages = {T2:'task2.html',T3:'task3.html',T4:'task4.html',T5:'task5.html'};
+  window.location.href = pages[next.id] || 'index.html';
+}
+
+// ---- Exit with PIN ----
+function showExitModal(target){
+  exitTarget = target;
+  document.getElementById('exitModal').classList.add('show');
+  document.getElementById('exitPin').value='';
+  document.getElementById('exitMsg').classList.remove('show');
+  setTimeout(()=>document.getElementById('exitPin').focus(),200);
+}
+function closeExitModal(){
+  document.getElementById('exitModal').classList.remove('show');
+}
+async function confirmExit(){
+  const pin = document.getElementById('exitPin').value.trim();
+  if(!pin) return;
+  try {
+    const res = await api({action:'verifyPin', pin});
+    if(res.verified){
+      closeExitModal();
+      // Save pause state
+      await api({action:'updateRecord', record_id:recordId, status:'paused',
+        resume_data: JSON.stringify({task:'T1', word_idx:currentIdx})});
+      window.location.href = 'index.html';
+    } else {
+      document.getElementById('exitMsg').classList.add('show');
+      document.getElementById('exitPin').value='';
+    }
+  } catch(e){
+    document.getElementById('exitMsg').textContent='Connection error.';
+    document.getElementById('exitMsg').classList.add('show');
+  }
+}
+
+// ---- Shuffle ----
+function shuffle(arr){
+  for(let i=arr.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+}
+
+// ---- Lock navigation ----
+history.pushState(null,'',location.href);
+window.addEventListener('popstate',()=>history.pushState(null,'',location.href));
+</script>
+</body>
+</html>
