@@ -308,6 +308,9 @@ let geminiKey  = '';
   // Get Gemini key from config
   geminiKey = config.gemini_api_key || '';
 
+  // Read teacher settings
+  repeatCount = parseInt(setup.repeat_count) || 3;
+
   // Load words
   try {
     const res = await api({
@@ -327,6 +330,17 @@ let geminiKey  = '';
     }
     words = res.data;
     if(setup.word_order === 'random') shuffle(words);
+
+    // Apply num_words limit
+    const limit = setup.num_words;
+    if(limit && limit !== 'all'){
+      const n = parseInt(limit);
+      if(!isNaN(n) && n > 0 && n < words.length){
+        words = setup.word_order === 'random'
+          ? words.slice(0, n)
+          : words.slice(0, n);
+      }
+    }
   } catch(e){
     hideLoading();
     alert('Connection error. Please refresh.');
@@ -346,10 +360,16 @@ async function api(p){ const q=new URLSearchParams(p).toString(); const r=await 
 function showLoading(t){ document.getElementById('overlayText').textContent=t||'Loading...'; document.getElementById('overlay').classList.add('show'); }
 function hideLoading(){ document.getElementById('overlay').classList.remove('show'); }
 
+let repeatCount  = 3;   // times to read each word
+let currentRepeat = 0; // current repeat number
+let autoTimer    = null;
+
 // ---- Show word ----
 function showWord(idx){
   if(idx < 0 || idx >= words.length) return;
-  currentIdx = idx;
+  currentIdx    = idx;
+  currentRepeat = 0;
+  if(autoTimer){ clearTimeout(autoTimer); autoTimer=null; }
   const w = words[idx];
 
   // Progress
@@ -436,80 +456,115 @@ function selectLang(code, el){
   }
 }
 
-// ---- Audio playback ----
+// ---- Audio playback with repeat & auto-advance ----
 async function playCurrentWord(){
   if(isPaused) return;
-  const w = words[currentIdx];
+  currentRepeat = 0;
+  await playWordCycle();
+}
+
+async function playWordCycle(){
+  if(isPaused) return;
+  currentRepeat++;
+  const w   = words[currentIdx];
   const btn = document.getElementById('speakerBtn');
+
+  // Update repeat counter display
+  const tap = document.querySelector('.tap-hint');
+  if(tap) tap.textContent = `🔊 ${currentRepeat} / ${repeatCount}`;
+
   btn.classList.add('playing');
   document.getElementById('wordCard').classList.add('playing');
 
   try {
-    if(w.audio_file){
-      // Play pre-recorded file
-      const audio = new Audio('audio/' + w.audio_file);
-      audio.onended = ()=>{ btn.classList.remove('playing'); document.getElementById('wordCard').classList.remove('playing'); };
-      audio.onerror = ()=>{ playTTS(w.word, btn); };
-      await audio.play();
-    } else {
-      await playTTS(w.word, btn);
+    await playAudio(w);
+  } catch(e){}
+
+  btn.classList.remove('playing');
+  document.getElementById('wordCard').classList.remove('playing');
+
+  if(isPaused) return;
+
+  if(currentRepeat < repeatCount){
+    // Wait 1.5s then play again
+    autoTimer = setTimeout(()=> playWordCycle(), 1500);
+  } else {
+    // All repeats done — wait 2.5s then auto-advance
+    const tap = document.querySelector('.tap-hint');
+    if(tap){
+      let countdown = 3;
+      tap.textContent = `✅ Next word in ${countdown}s...`;
+      const iv = setInterval(()=>{
+        countdown--;
+        if(countdown > 0) tap.textContent = `✅ Next word in ${countdown}s...`;
+        else { clearInterval(iv); }
+      }, 1000);
     }
-  } catch(e){
-    btn.classList.remove('playing');
-    document.getElementById('wordCard').classList.remove('playing');
+    autoTimer = setTimeout(()=>{
+      if(!isPaused){
+        if(currentIdx < words.length - 1) nextWord();
+        else showResult();
+      }
+    }, 2500);
   }
 }
 
-async function playTTS(word, btn){
-  const voice = config.gemini_voice || 'Leda';
-  const key   = config.gemini_api_key || geminiKey;
-
-  if(!key){
-    // Fallback to Web Speech API
-    playWebSpeech(word, btn);
-    return;
-  }
-
-  try {
-    const prompt = `Read this English word clearly and naturally, as if speaking to a primary school student: "${word}"`;
-    const resp = await fetch(`${GEMINI_API_BASE}?key=${key}`, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        contents:[{parts:[{text:prompt}]}],
-        generationConfig:{
-          responseModalities:['AUDIO'],
-          speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voice}}}
-        }
-      })
-    });
-    const data = await resp.json();
-    const b64  = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    if(!b64) throw new Error('no audio');
-
-    const binary = atob(b64);
-    const bytes  = new Uint8Array(binary.length);
-    for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
-    const wav  = pcmToWav(bytes,24000,1,16);
-    const blob = new Blob([wav],{type:'audio/wav'});
-    const url  = URL.createObjectURL(blob);
-    const audio= new Audio(url);
-    audio.onended = ()=>{ btn.classList.remove('playing'); document.getElementById('wordCard').classList.remove('playing'); };
-    await audio.play();
-  } catch(e){
-    playWebSpeech(word, btn);
-  }
+async function playAudio(w){
+  return new Promise(async (resolve)=>{
+    if(w.audio_file){
+      const audio = new Audio('audio/' + w.audio_file);
+      audio.onended = resolve;
+      audio.onerror = async ()=>{ await playTTSPromise(w.word); resolve(); };
+      audio.play().catch(async ()=>{ await playTTSPromise(w.word); resolve(); });
+    } else {
+      await playTTSPromise(w.word);
+      resolve();
+    }
+  });
 }
 
-function playWebSpeech(word, btn){
-  if(!window.speechSynthesis){ btn.classList.remove('playing'); return; }
-  const utt = new SpeechSynthesisUtterance(word);
-  utt.lang = 'en-GB'; utt.rate = 0.85;
-  const voices = speechSynthesis.getVoices().filter(v=>v.lang.startsWith('en'));
-  const female = voices.find(v=>/female|zira|samantha|karen|victoria|moira/i.test(v.name));
-  if(female) utt.voice = female;
-  utt.onend = ()=>{ btn.classList.remove('playing'); document.getElementById('wordCard').classList.remove('playing'); };
-  speechSynthesis.speak(utt);
+async function playTTSPromise(word){
+  return new Promise(async (resolve)=>{
+    const voice = config.gemini_voice || 'Leda';
+    const key   = config.gemini_api_key || geminiKey;
+    if(!key){ await playWebSpeechPromise(word); resolve(); return; }
+    try {
+      const prompt = `Read this English word clearly and naturally, as if speaking to a primary school student: "${word}"`;
+      const resp = await fetch(`${GEMINI_API_BASE}?key=${key}`,{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          contents:[{parts:[{text:prompt}]}],
+          generationConfig:{responseModalities:['AUDIO'],
+            speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voice}}}}
+        })
+      });
+      const data = await resp.json();
+      const b64  = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      if(!b64) throw new Error('no audio');
+      const binary=atob(b64); const bytes=new Uint8Array(binary.length);
+      for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
+      const wav=pcmToWav(bytes,24000,1,16);
+      const blob=new Blob([wav],{type:'audio/wav'});
+      const url=URL.createObjectURL(blob);
+      const audio=new Audio(url);
+      audio.onended=resolve; audio.onerror=async()=>{await playWebSpeechPromise(word);resolve();};
+      await audio.play();
+    } catch(e){ await playWebSpeechPromise(word); resolve(); }
+  });
+}
+
+async function playWebSpeechPromise(word){
+  return new Promise((resolve)=>{
+    if(!window.speechSynthesis){ resolve(); return; }
+    speechSynthesis.cancel();
+    const utt=new SpeechSynthesisUtterance(word);
+    utt.lang='en-GB'; utt.rate=0.85;
+    const voices=speechSynthesis.getVoices().filter(v=>v.lang.startsWith('en'));
+    const female=voices.find(v=>/female|zira|samantha|karen|victoria|moira/i.test(v.name));
+    if(female) utt.voice=female;
+    utt.onend=resolve; utt.onerror=resolve;
+    speechSynthesis.speak(utt);
+  });
 }
 
 function pcmToWav(pcmData,sampleRate,numChannels,bitsPerSample){
@@ -531,9 +586,11 @@ function pcmToWav(pcmData,sampleRate,numChannels,bitsPerSample){
 
 // ---- Navigation ----
 function prevWord(){
+  if(autoTimer){ clearTimeout(autoTimer); autoTimer=null; }
   if(currentIdx > 0){ showWord(currentIdx-1); setTimeout(()=>playCurrentWord(),400); }
 }
 function nextWord(){
+  if(autoTimer){ clearTimeout(autoTimer); autoTimer=null; }
   if(currentIdx < words.length-1){ showWord(currentIdx+1); setTimeout(()=>playCurrentWord(),400); }
   else showResult();
 }
@@ -542,7 +599,15 @@ function togglePause(){
   document.getElementById('pauseIcon').textContent  = isPaused ? '▶️' : '⏸';
   document.getElementById('pauseLabel').textContent = isPaused ? 'Resume' : 'Pause';
   document.getElementById('pausedBadge').classList.toggle('show', isPaused);
-  if(isPaused) speechSynthesis.cancel();
+  if(isPaused){
+    speechSynthesis.cancel();
+    if(autoTimer){ clearTimeout(autoTimer); autoTimer=null; }
+    const tap = document.querySelector('.tap-hint');
+    if(tap) tap.textContent = '⏸ Paused — tap Resume to continue';
+  } else {
+    // Resume — replay current word from start
+    setTimeout(()=>playCurrentWord(), 500);
+  }
 }
 
 // ---- Result ----
