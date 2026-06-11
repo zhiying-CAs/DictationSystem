@@ -161,13 +161,20 @@ html,body{min-height:100vh;font-family:'Nunito',sans-serif;background:var(--g7);
     </div>
   </div>
 
-  <!-- CARD 2: Teacher Settings (PIN-locked) -->
+  <!-- CARD 2: Teacher Settings (tap to expand, PIN inside) -->
   <div class="card">
-    <div class="card-header"><span class="icon">🔐</span><h2>Teacher Settings</h2></div>
+    <div class="card-header" id="teacherHeader" onclick="toggleTeacherPanel()" style="cursor:pointer;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="icon" id="teacherLockIcon">🔒</span>
+        <h2>Teacher Settings</h2>
+      </div>
+      <span id="teacherChevron" style="font-size:18px;transition:transform 0.3s;">▼</span>
+    </div>
+    <div id="teacherPanel" style="display:none;">
     <div class="card-body">
 
-      <div class="field">
-        <label>Teacher PIN to unlock</label>
+      <div class="field" id="pinSection">
+        <label>Teacher PIN</label>
         <div class="pin-row">
           <input type="password" id="pinInput" placeholder="Enter PIN" maxlength="10"
             onkeydown="if(event.key==='Enter') verifyTeacherPin()">
@@ -197,10 +204,11 @@ html,body{min-height:100vh;font-family:'Nunito',sans-serif;background:var(--g7);
             <option value="random">Random</option>
           </select>
         </div>
-      </div>
+      </div><!-- /teacherSettings -->
 
-    </div>
-  </div>
+    </div><!-- /card-body -->
+    </div><!-- /teacherPanel -->
+  </div><!-- /card -->
 
   <!-- START BUTTON -->
   <div style="width:100%;max-width:480px">
@@ -420,6 +428,15 @@ async function updateWordCount(){
   } catch(e){}
 }
 
+// ---- Toggle teacher panel ----
+function toggleTeacherPanel(){
+  const panel   = document.getElementById('teacherPanel');
+  const chevron = document.getElementById('teacherChevron');
+  const isOpen  = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+}
+
 // ---- Teacher PIN ----
 async function verifyTeacherPin(){
   const pin = document.getElementById('pinInput').value.trim();
@@ -432,6 +449,8 @@ async function verifyTeacherPin(){
       teacherUnlocked=true;
       document.getElementById('teacherSettings').classList.remove('teacher-locked');
       document.getElementById('pinInput').value='';
+      document.getElementById('pinSection').style.display='none';
+      document.getElementById('teacherLockIcon').textContent='🔓';
       showMsg('✅ Teacher mode unlocked!','success');
     } else {
       showMsg('❌ Wrong PIN. Try again.','error');
