@@ -372,6 +372,11 @@ function showWord(idx){
   if(autoTimer){ clearTimeout(autoTimer); autoTimer=null; }
   const w = words[idx];
 
+  // Prefetch next word's audio in background (so it's ready & consistent)
+  if(idx+1 < words.length && !words[idx+1].audio_file){
+    fetchTTS(words[idx+1].word);
+  }
+
   // Progress
   const pct = Math.round(((idx+1)/words.length)*100);
   document.getElementById('progressBar').style.width = pct + '%';
@@ -509,6 +514,9 @@ async function playWordCycle(){
   }
 }
 
+// Audio cache — generate TTS once per word, reuse for all repeats
+const ttsCache = {};
+
 async function playAudio(w){
   return new Promise(async (resolve)=>{
     if(w.audio_file){
@@ -523,33 +531,42 @@ async function playAudio(w){
   });
 }
 
+// Pre-fetch and cache TTS audio URL for a word (returns blob URL or null)
+async function fetchTTS(word){
+  if(ttsCache[word]) return ttsCache[word];
+  const voice = config.gemini_voice || 'Zephyr';
+  const key   = config.gemini_api_key || geminiKey;
+  if(!key) return null;
+  try {
+    const prompt = `Read this English word clearly and naturally, as if speaking to a primary school student: "${word}"`;
+    const resp = await fetch(`${GEMINI_API_BASE}?key=${key}`,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        contents:[{parts:[{text:prompt}]}],
+        generationConfig:{responseModalities:['AUDIO'],
+          speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voice}}}}
+      })
+    });
+    const data = await resp.json();
+    const b64  = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    if(!b64) return null;
+    const binary=atob(b64); const bytes=new Uint8Array(binary.length);
+    for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
+    const wav=pcmToWav(bytes,24000,1,16);
+    const url=URL.createObjectURL(new Blob([wav],{type:'audio/wav'}));
+    ttsCache[word]=url;
+    return url;
+  } catch(e){ return null; }
+}
+
 async function playTTSPromise(word){
   return new Promise(async (resolve)=>{
-    const voice = config.gemini_voice || 'Leda';
-    const key   = config.gemini_api_key || geminiKey;
-    if(!key){ await playWebSpeechPromise(word); resolve(); return; }
-    try {
-      const prompt = `Read this English word clearly and naturally, as if speaking to a primary school student: "${word}"`;
-      const resp = await fetch(`${GEMINI_API_BASE}?key=${key}`,{
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-          contents:[{parts:[{text:prompt}]}],
-          generationConfig:{responseModalities:['AUDIO'],
-            speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voice}}}}
-        })
-      });
-      const data = await resp.json();
-      const b64  = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-      if(!b64) throw new Error('no audio');
-      const binary=atob(b64); const bytes=new Uint8Array(binary.length);
-      for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
-      const wav=pcmToWav(bytes,24000,1,16);
-      const blob=new Blob([wav],{type:'audio/wav'});
-      const url=URL.createObjectURL(blob);
-      const audio=new Audio(url);
-      audio.onended=resolve; audio.onerror=async()=>{await playWebSpeechPromise(word);resolve();};
-      await audio.play();
-    } catch(e){ await playWebSpeechPromise(word); resolve(); }
+    const url = await fetchTTS(word);
+    if(!url){ await playWebSpeechPromise(word); resolve(); return; }
+    const audio=new Audio(url);
+    audio.onended=resolve;
+    audio.onerror=async()=>{await playWebSpeechPromise(word);resolve();};
+    audio.play().catch(async()=>{await playWebSpeechPromise(word);resolve();});
   });
 }
 
