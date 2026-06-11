@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Dictation System</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Nunito+Sans:wght@400;600&display=swap');
+
+  :root {
+    --primary:   #4F46E5;
+    --primary-light: #EEF2FF;
+    --primary-dark:  #3730A3;
+    --accent:    #F59E0B;
+    --accent-light: #FEF3C7;
+    --success:   #10B981;
+    --danger:    #EF4444;
+    --bg:        #F8F7FF;
+    --surface:   #FFFFFF;
+    --text:      #1E1B4B;
+    --muted:     #6B7280;
+    --border:    #E0E7FF;
+    --radius:    16px;
+    --shadow:    0 4px 24px rgba(79,70,229,0.10);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    font-family: 'Nunito Sans', sans-serif;
+    color: var(--text);
+    overflow-x: hidden;
+  }
+
+  /* ---- STARS BACKGROUND ---- */
+  .stars {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden;
+  }
+  .star {
+    position: absolute; border-radius: 50%; background: var(--primary);
+    opacity: 0; animation: twinkle var(--d) var(--delay) infinite;
+  }
+  @keyframes twinkle {
+    0%,100% { opacity: 0; transform: scale(0.5); }
+    50%      { opacity: 0.18; transform: scale(1); }
+  }
+
+  /* ---- LAYOUT ---- */
+  .page {
+    position: relative; z-index: 1;
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 24px 16px;
+  }
+
+  /* ---- HEADER ---- */
+  .header {
+    text-align: center; margin-bottom: 32px;
+  }
+  .logo-ring {
+    width: 80px; height: 80px; border-radius: 50%;
+    background: var(--primary);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 16px;
+    box-shadow: 0 0 0 8px var(--primary-light), 0 0 0 12px rgba(79,70,229,0.12);
+    font-size: 36px;
+  }
+  .app-name {
+    font-family: 'Nunito', sans-serif;
+    font-size: clamp(26px, 6vw, 38px);
+    font-weight: 900;
+    color: var(--primary);
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+  }
+  .app-tagline {
+    font-size: 14px; color: var(--muted); margin-top: 6px; font-weight: 600; letter-spacing: 0.5px;
+  }
+
+  /* ---- CARD ---- */
+  .card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1.5px solid var(--border);
+    box-shadow: var(--shadow);
+    padding: 28px 24px;
+    width: 100%; max-width: 420px;
+  }
+
+  /* ---- TABS ---- */
+  .tab-bar {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    background: var(--bg); border-radius: 12px; padding: 4px;
+    margin-bottom: 24px; gap: 2px;
+  }
+  .tab-btn {
+    padding: 9px 4px; border: none; background: transparent;
+    border-radius: 9px; font-family: 'Nunito', sans-serif;
+    font-size: 12px; font-weight: 700; color: var(--muted);
+    cursor: pointer; transition: all 0.2s; letter-spacing: 0.2px;
+  }
+  .tab-btn.active {
+    background: var(--surface); color: var(--primary);
+    box-shadow: 0 2px 8px rgba(79,70,229,0.12);
+  }
+
+  /* ---- FORM ---- */
+  .form-section { display: none; }
+  .form-section.active { display: block; }
+
+  .field { margin-bottom: 16px; }
+  .field label {
+    display: block; font-size: 13px; font-weight: 700;
+    color: var(--text); margin-bottom: 6px; letter-spacing: 0.3px;
+  }
+  .field input, .field select {
+    width: 100%; padding: 13px 14px;
+    border: 1.5px solid var(--border); border-radius: 10px;
+    font-family: 'Nunito Sans', sans-serif; font-size: 15px;
+    color: var(--text); background: var(--bg);
+    outline: none; transition: border 0.2s;
+    appearance: none; -webkit-appearance: none;
+  }
+  .field input:focus, .field select:focus {
+    border-color: var(--primary); background: #fff;
+  }
+  .field input::placeholder { color: #C4B5FD; }
+
+  /* ---- BUTTONS ---- */
+  .btn {
+    width: 100%; padding: 15px;
+    border: none; border-radius: 12px;
+    font-family: 'Nunito', sans-serif; font-size: 16px; font-weight: 800;
+    cursor: pointer; transition: all 0.18s; letter-spacing: 0.3px;
+  }
+  .btn-primary {
+    background: var(--primary); color: #fff;
+    box-shadow: 0 4px 14px rgba(79,70,229,0.3);
+  }
+  .btn-primary:hover   { background: var(--primary-dark); transform: translateY(-1px); }
+  .btn-primary:active  { transform: translateY(1px); box-shadow: none; }
+  .btn-secondary {
+    background: var(--accent-light); color: #92400E;
+    margin-top: 10px;
+  }
+  .btn-secondary:hover { background: #FDE68A; }
+
+  /* ---- DIVIDER ---- */
+  .divider {
+    display: flex; align-items: center; gap: 10px;
+    margin: 20px 0; color: var(--muted); font-size: 12px; font-weight: 700;
+  }
+  .divider::before, .divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+
+  /* ---- RESUME BOX ---- */
+  .resume-hint {
+    background: var(--primary-light); border-radius: 10px;
+    padding: 12px 14px; margin-bottom: 16px;
+    font-size: 13px; color: var(--primary-dark); font-weight: 600;
+    display: flex; gap: 8px; align-items: flex-start;
+  }
+  .resume-hint .icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+  /* ---- ERROR / SUCCESS ---- */
+  .msg {
+    padding: 11px 14px; border-radius: 10px;
+    font-size: 13px; font-weight: 700; margin-bottom: 14px; display: none;
+  }
+  .msg.error   { background: #FEE2E2; color: #991B1B; display: block; }
+  .msg.success { background: #D1FAE5; color: #065F46; display: block; }
+
+  /* ---- LOADING OVERLAY ---- */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(248,247,255,0.92);
+    z-index: 100; display: none;
+    flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+  }
+  .overlay.show { display: flex; }
+  .spinner {
+    width: 48px; height: 48px; border-radius: 50%;
+    border: 4px solid var(--border);
+    border-top-color: var(--primary);
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .overlay-text {
+    font-family: 'Nunito', sans-serif; font-size: 16px;
+    font-weight: 700; color: var(--primary);
+  }
+
+  /* ---- FOOTER ---- */
+  .footer {
+    text-align: center; margin-top: 24px;
+    font-size: 12px; color: var(--muted);
+  }
+
+  /* ---- RESPONSIVE ---- */
+  @media (max-width: 400px) {
+    .card { padding: 22px 16px; }
+    .tab-btn { font-size: 11px; padding: 8px 2px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Stars -->
+<div class="stars" id="stars"></div>
+
+<!-- Loading overlay -->
+<div class="overlay" id="overlay">
+  <div class="spinner"></div>
+  <div class="overlay-text" id="overlayText">Loading...</div>
+</div>
+
+<div class="page">
+  <div class="header">
+    <div class="logo-ring">📖</div>
+    <div class="app-name" id="appName">Dictation System</div>
+    <div class="app-tagline">SPELL · HUNT · DROP · CHECK · DETECT</div>
+  </div>
+
+  <div class="card">
+    <!-- Tab bar -->
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('zps')">ZPS Student</button>
+      <button class="tab-btn"       onclick="switchTab('guest')">Guest</button>
+      <button class="tab-btn"       onclick="switchTab('resume')">Continue</button>
+    </div>
+
+    <!-- Error / success message -->
+    <div class="msg" id="msg"></div>
+
+    <!-- ZPS Login -->
+    <div class="form-section active" id="tab-zps">
+      <div class="field">
+        <label>Your full name</label>
+        <input type="text" id="zpsName" placeholder="e.g. Tan Mei Ling" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Your class</label>
+        <input type="text" id="zpsClass" placeholder="e.g. 3A" autocomplete="off">
+      </div>
+      <button class="btn btn-primary" onclick="loginZPS()">Start ➜</button>
+    </div>
+
+    <!-- Guest Login -->
+    <div class="form-section" id="tab-guest">
+      <div class="resume-hint">
+        <span class="icon">👋</span>
+        <span>Guest students — just enter your name to begin. Your progress will still be saved!</span>
+      </div>
+      <div class="field">
+        <label>Your name</label>
+        <input type="text" id="guestName" placeholder="e.g. Ahmad" autocomplete="off">
+      </div>
+      <button class="btn btn-primary" onclick="loginGuest()">Start ➜</button>
+    </div>
+
+    <!-- Resume Session -->
+    <div class="form-section" id="tab-resume">
+      <div class="resume-hint">
+        <span class="icon">🔖</span>
+        <span>Enter the session code from your worksheet to continue where you left off.</span>
+      </div>
+      <div class="field">
+        <label>Session code</label>
+        <input type="text" id="resumeCode" placeholder="e.g. SS-2606-0042"
+               autocomplete="off" style="text-transform:uppercase; letter-spacing:1px; font-family:monospace; font-size:17px;">
+      </div>
+      <button class="btn btn-primary" onclick="resumeSession()">Continue ➜</button>
+      <div class="divider">or start fresh</div>
+      <button class="btn btn-secondary" onclick="switchTab('zps')">New session</button>
+    </div>
+  </div>
+
+  <div class="footer">
+    All tasks are locked to this screen. Ask your teacher to exit.
+  </div>
+</div>
+
+<script>
+// ============================================================
+const API = 'https://script.google.com/macros/s/AKfycbw76QSB-lv4pA-6s_m6vNk_oGEdeLqrsqkoBGu6j-XMulb-maiAGkqqhfqqEmGfcbn3Ow/exec';
+
+// ---- Generate stars ----
+(function() {
+  const container = document.getElementById('stars');
+  for (let i = 0; i < 40; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    const size = Math.random() * 4 + 2;
+    s.style.cssText = `
+      width:${size}px; height:${size}px;
+      left:${Math.random()*100}%;
+      top:${Math.random()*100}%;
+      --d:${(Math.random()*3+2).toFixed(1)}s;
+      --delay:-${(Math.random()*4).toFixed(1)}s;
+    `;
+    container.appendChild(s);
+  }
+})();
+
+// ---- Tab switching ----
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => {
+    b.classList.toggle('active', ['zps','guest','resume'][i] === name);
+  });
+  document.querySelectorAll('.form-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  clearMsg();
+}
+
+// ---- Message helpers ----
+function showMsg(text, type) {
+  const el = document.getElementById('msg');
+  el.textContent = text;
+  el.className = 'msg ' + type;
+}
+function clearMsg() {
+  const el = document.getElementById('msg');
+  el.className = 'msg';
+}
+
+// ---- Overlay ----
+function showLoading(text) {
+  document.getElementById('overlayText').textContent = text || 'Loading...';
+  document.getElementById('overlay').classList.add('show');
+}
+function hideLoading() {
+  document.getElementById('overlay').classList.remove('show');
+}
+
+// ---- API call ----
+async function api(params) {
+  const qs = new URLSearchParams(params).toString();
+  const res = await fetch(API + '?' + qs);
+  return res.json();
+}
+
+// ---- ZPS Login ----
+async function loginZPS() {
+  const name  = document.getElementById('zpsName').value.trim();
+  const cls   = document.getElementById('zpsClass').value.trim();
+  if (!name)  { showMsg('Please enter your name.', 'error'); return; }
+  if (!cls)   { showMsg('Please enter your class.', 'error'); return; }
+  clearMsg();
+  showLoading('Checking your details...');
+  try {
+    const data = await api({ action: 'loginStudent', name, class: cls });
+    if (data.success) {
+      saveSession(data.student);
+      goToSetup();
+    } else {
+      showMsg(data.error || 'Not found. Check your name and class.', 'error');
+    }
+  } catch(e) {
+    showMsg('Connection error. Please try again.', 'error');
+  }
+  hideLoading();
+}
+
+// ---- Guest Login ----
+async function loginGuest() {
+  const name = document.getElementById('guestName').value.trim();
+  if (!name) { showMsg('Please enter your name.', 'error'); return; }
+  clearMsg();
+  showLoading('Setting up your session...');
+  try {
+    const data = await api({ action: 'loginStudent', name, guest: 'true' });
+    if (data.success) {
+      saveSession(data.student);
+      goToSetup();
+    } else {
+      showMsg('Something went wrong. Please try again.', 'error');
+    }
+  } catch(e) {
+    showMsg('Connection error. Please try again.', 'error');
+  }
+  hideLoading();
+}
+
+// ---- Resume Session ----
+async function resumeSession() {
+  const code = document.getElementById('resumeCode').value.trim().toUpperCase();
+  if (!code) { showMsg('Please enter your session code.', 'error'); return; }
+  clearMsg();
+  showLoading('Finding your session...');
+  try {
+    const data = await api({ action: 'getRecord', record_id: code });
+    if (data.success) {
+      sessionStorage.setItem('ds_resume', JSON.stringify(data.data));
+      window.location.href = 'setup.html';
+    } else {
+      showMsg('Session code not found. Check and try again.', 'error');
+    }
+  } catch(e) {
+    showMsg('Connection error. Please try again.', 'error');
+  }
+  hideLoading();
+}
+
+// ---- Save student to sessionStorage ----
+function saveSession(student) {
+  sessionStorage.setItem('ds_student', JSON.stringify(student));
+}
+
+// ---- Go to setup page ----
+function goToSetup() {
+  window.location.href = 'setup.html';
+}
+
+// ---- Load app name from config ----
+async function loadConfig() {
+  try {
+    const data = await api({ action: 'getConfig' });
+    if (data.success && data.data.app_name) {
+      document.getElementById('appName').textContent = data.data.app_name;
+      document.title = data.data.app_name;
+      sessionStorage.setItem('ds_config', JSON.stringify(data.data));
+    }
+  } catch(e) { /* use default name */ }
+}
+
+// ---- Prevent back navigation (lock screen) ----
+history.pushState(null, '', location.href);
+window.addEventListener('popstate', () => {
+  history.pushState(null, '', location.href);
+});
+
+// ---- Init ----
+loadConfig();
+</script>
+</body>
+</html>
