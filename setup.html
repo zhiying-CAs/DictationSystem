@@ -183,10 +183,37 @@ html,body{min-height:100vh;font-family:'Nunito',sans-serif;background:var(--g7);
       </div>
 
       <div id="teacherSettings" class="teacher-locked">
+
         <div class="field" style="margin-top:4px">
           <label>Task order & toggle</label>
           <div class="task-order" id="taskOrder"></div>
-          <p class="hint">Tap to enable/disable. Drag to reorder. Task 1 (Spell Storm) is always first.</p>
+          <p class="hint">Tap to enable/disable. Hold & drag to reorder. Spell Storm is always first.</p>
+        </div>
+
+        <div class="field">
+          <label>Number of words to test</label>
+          <select id="numWords">
+            <option value="all">All words</option>
+            <option value="5">5 words</option>
+            <option value="10">10 words</option>
+            <option value="15">15 words</option>
+            <option value="20">20 words</option>
+            <option value="custom">Custom...</option>
+          </select>
+          <input type="number" id="numWordsCustom" min="1" max="200"
+            placeholder="Enter number of words"
+            style="display:none;margin-top:8px;width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:12px;font-family:Nunito,sans-serif;font-size:15px;font-weight:600;outline:none;">
+        </div>
+
+        <div class="field">
+          <label>Times to read each word</label>
+          <select id="repeatCount">
+            <option value="1">1 time</option>
+            <option value="2">2 times</option>
+            <option value="3" selected>3 times (default)</option>
+            <option value="4">4 times</option>
+            <option value="5">5 times</option>
+          </select>
         </div>
 
         <div class="field">
@@ -204,6 +231,7 @@ html,body{min-height:100vh;font-family:'Nunito',sans-serif;background:var(--g7);
             <option value="random">Random</option>
           </select>
         </div>
+
       </div><!-- /teacherSettings -->
 
     </div><!-- /card-body -->
@@ -458,19 +486,39 @@ async function verifyTeacherPin(){
   } catch(e){ hideLoading(); showMsg('Connection error.','error'); }
 }
 
-// ---- Task order UI ----
+// ---- Task order UI with drag-drop ----
 function renderTaskOrder(){
   const container = document.getElementById('taskOrder');
   container.innerHTML='';
-  taskOrder.forEach((taskIdx,orderPos)=>{
-    const task = TASKS[taskIdx];
+  taskOrder.forEach((taskIdx)=>{
+    const task    = TASKS[taskIdx];
     const enabled = taskEnabled[taskIdx];
-    const pill = document.createElement('div');
-    pill.className='task-pill'+(task.mandatory?' mandatory':enabled?' enabled':'');
-    pill.dataset.taskIdx=taskIdx;
-    pill.innerHTML=`<span>${task.emoji} ${task.name}</span><span class="toggle"></span>`;
+    const pill    = document.createElement('div');
+    pill.className = 'task-pill'+(task.mandatory?' mandatory':enabled?' enabled':'');
+    pill.dataset.taskIdx = taskIdx;
+    pill.draggable = !task.mandatory;
+    pill.innerHTML = `<span class="drag-handle">${task.mandatory?'🔒':'⠿'}</span><span>${task.emoji} ${task.name}</span><span class="toggle"></span>`;
+
     if(!task.mandatory){
-      pill.onclick=()=>toggleTask(taskIdx);
+      pill.onclick = ()=>toggleTask(taskIdx);
+      // Drag events
+      pill.addEventListener('dragstart', e=>{ e.dataTransfer.setData('text/plain', taskIdx); pill.style.opacity='0.5'; });
+      pill.addEventListener('dragend',   e=>{ pill.style.opacity='1'; });
+      pill.addEventListener('dragover',  e=>{ e.preventDefault(); pill.style.borderColor='var(--g3)'; });
+      pill.addEventListener('dragleave', e=>{ pill.style.borderColor=''; });
+      pill.addEventListener('drop', e=>{
+        e.preventDefault(); pill.style.borderColor='';
+        const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
+        const toIdx   = parseInt(pill.dataset.taskIdx);
+        // Don't allow dropping onto T1 (mandatory)
+        if(toIdx === 0) return;
+        const fi = taskOrder.indexOf(fromIdx);
+        const ti = taskOrder.indexOf(toIdx);
+        if(fi<0||ti<0) return;
+        taskOrder.splice(fi,1);
+        taskOrder.splice(ti,0,fromIdx);
+        renderTaskOrder();
+      });
     }
     container.appendChild(pill);
   });
@@ -478,36 +526,57 @@ function renderTaskOrder(){
 
 function toggleTask(taskIdx){
   if(!teacherUnlocked) return;
-  taskEnabled[taskIdx]=!taskEnabled[taskIdx];
+  taskEnabled[taskIdx] = !taskEnabled[taskIdx];
   renderTaskOrder();
 }
 
+// ---- numWords custom input ----
+document.addEventListener('DOMContentLoaded',()=>{
+  const sel = document.getElementById('numWords');
+  if(sel) sel.addEventListener('change',()=>{
+    document.getElementById('numWordsCustom').style.display =
+      sel.value==='custom' ? 'block' : 'none';
+  });
+});
+
 // ---- Start session ----
 async function startSession(){
-  const student= JSON.parse(sessionStorage.getItem('ds_student')||'{}');
-  const series = document.getElementById('selSeries').value;
-  const level  = document.getElementById('selLevel').value;
-  const from   = document.getElementById('selUnitFrom').value;
-  const to     = document.getElementById('selUnitTo').value;
-  const showDef= document.getElementById('showDefinition').value;
-  const order  = document.getElementById('wordOrder').value;
+  const student = JSON.parse(sessionStorage.getItem('ds_student')||'{}');
+  const series  = document.getElementById('selSeries').value;
+  const level   = document.getElementById('selLevel').value;
+  const from    = document.getElementById('selUnitFrom').value;
+  const to      = document.getElementById('selUnitTo').value;
+  const showDef = document.getElementById('showDefinition').value;
+  const order   = document.getElementById('wordOrder').value;
+  const repeat  = parseInt(document.getElementById('repeatCount').value) || 3;
+
+  // Number of words
+  const numSel = document.getElementById('numWords').value;
+  let numWords = 'all';
+  if(numSel === 'custom'){
+    const custom = parseInt(document.getElementById('numWordsCustom').value);
+    numWords = isNaN(custom)||custom<1 ? 'all' : custom;
+  } else if(numSel !== 'all'){
+    numWords = parseInt(numSel);
+  }
 
   if(!series||!level||!from||!to){ showMsg('Please complete all selections.','error'); return; }
   if(wordCount===0){ showMsg('No words found. Please change your selection.','error'); return; }
 
   showLoading('Setting up your session...');
 
-  // Save session setup to sessionStorage
   const setup = {
     series, level,
-    unit_from: from,
-    unit_to:   to,
-    half:      selectedHalf,
+    unit_from:       from,
+    unit_to:         to,
+    half:            selectedHalf,
     show_definition: showDef,
-    word_order: order,
-    task_enabled: taskEnabled,
-    task_order:   taskOrder,
-    word_count:   wordCount
+    word_order:      order,
+    repeat_count:    repeat,
+    num_words:       numWords,
+    task_enabled:    taskEnabled,
+    task_order:      taskOrder,
+    word_count:      wordCount
   };
   sessionStorage.setItem('ds_setup', JSON.stringify(setup));
 
