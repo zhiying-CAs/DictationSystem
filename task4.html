@@ -74,6 +74,11 @@ body{display:flex;flex-direction:column;}
 .result-title{font-size:25px;font-weight:900;color:var(--g1);margin-bottom:4px;}
 .result-score{font-size:18px;font-weight:800;color:var(--muted);margin-bottom:8px;}
 .result-pct{font-size:14px;font-weight:700;color:var(--g3);margin-bottom:16px;}
+/* Word ID summary for teacher */
+.wordid-summary{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:16px;max-width:440px;background:var(--white);border:1.5px solid var(--border);border-radius:12px;padding:10px;}
+.wordid-chip{font-size:11px;font-weight:800;font-family:monospace;padding:3px 8px;border-radius:8px;letter-spacing:0.5px;}
+.wordid-chip.ok{background:var(--g6);color:var(--g1);}
+.wordid-chip.no{background:#FEE2E2;color:#991B1B;}
 /* Explanation review */
 .explain-lang-bar{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;margin-bottom:14px;width:100%;max-width:440px;}
 .explain-lang-chip{padding:5px 12px;border-radius:14px;border:1.5px solid var(--border);background:var(--white);font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;}
@@ -153,6 +158,7 @@ body{display:flex;flex-direction:column;}
   <div class="result-title" id="resultTitle">Well done!</div>
   <div class="result-score" id="resultScore"></div>
   <div class="result-pct" id="resultPct"></div>
+  <div class="wordid-summary" id="wordidSummary"></div>
   <div class="explain-lang-bar" id="explainLangBar"></div>
   <div class="review-list" id="reviewList"></div>
   <div class="result-btns" id="resultBtns"></div>
@@ -310,36 +316,22 @@ function selectOption(i,el){
   el.classList.add('selected');
   const btn=document.getElementById('nextBtn');
   btn.disabled=false;
-  btn.textContent=(currentQ===questions.length-1)?'Submit ✓':'Check answer ✓';
+  btn.textContent=(currentQ===questions.length-1)?'See results ➜':'Next question ➜';
 }
 
 function onNext(){
-  if(!answered){
-    // Reveal answer (mode 2: show correct/wrong immediately, then explanation in final review)
-    answered=true;
-    const q=questions[currentQ];
-    const opts=document.querySelectorAll('.option');
-    let isCorrect=false;
-    q.options.forEach((opt,i)=>{
-      opts[i].classList.add('disabled');
-      if(opt.correct){opts[i].classList.add('correct');}
-      if(i===selectedOption){
-        if(opt.correct){isCorrect=true;}
-        else{opts[i].classList.add('wrong');}
-      }
-    });
-    if(isCorrect){score++;sndCorrect();}else sndWrong();
-    answers.push({word:q.word,question:q.question,
-      picked:q.options[selectedOption].text,
-      correct:q.options.find(o=>o.correct).text,
-      isCorrect});
-    const btn=document.getElementById('nextBtn');
-    btn.textContent=(currentQ===questions.length-1)?'See results ➜':'Next question ➜';
-  } else {
-    // Move to next
-    if(currentQ<questions.length-1){showQuestion(currentQ+1);}
-    else showResult();
-  }
+  if(selectedOption===null)return;
+  // Record the answer silently (no reveal). Show correct/wrong only at the end.
+  const q=questions[currentQ];
+  const isCorrect=q.options[selectedOption].correct;
+  if(isCorrect)score++;
+  answers.push({word:q.word,question:q.question,
+    picked:q.options[selectedOption].text,
+    correct:q.options.find(o=>o.correct).text,
+    isCorrect});
+  // Move on
+  if(currentQ<questions.length-1){showQuestion(currentQ+1);}
+  else showResult();
 }
 
 // ===== RESULT =====
@@ -362,6 +354,7 @@ function showResult(){
   if(passed){sndWin();bigConfetti();}
 
   buildExplainLangBar();
+  renderWordIdSummary();
   renderReview();
 
   const btns=document.getElementById('resultBtns');btns.innerHTML='';
@@ -371,6 +364,16 @@ function showResult(){
     const redo=document.createElement('button');redo.className='btn-redo';redo.textContent='Try again 🔄';redo.onclick=()=>location.reload();btns.appendChild(redo);
   }
   const stop=document.createElement('button');stop.className='btn-stop';stop.textContent='Stop here';stop.onclick=uOpenExit;btns.appendChild(stop);
+}
+
+function renderWordIdSummary(){
+  const cont=document.getElementById('wordidSummary');cont.innerHTML='';
+  answers.forEach(a=>{
+    const chip=document.createElement('span');
+    chip.className='wordid-chip '+(a.isCorrect?'ok':'no');
+    chip.textContent=a.word.word_id+' '+(a.isCorrect?'✓':'✗');
+    cont.appendChild(chip);
+  });
 }
 
 function buildExplainLangBar(){
@@ -397,16 +400,17 @@ function renderReview(){
     } else {
       html+=`<div class="review-answer">Answer: <b>${a.correct}</b></div>`;
     }
-    // Explanation: use collocation meaning + the partner
+    // Explanation: use collocation meaning + the partner's OWN translation
     const w=a.word;
+    const COLLOC_KEY={zh:'collocation_zh',ms:'collocation_ms',id:'collocation_id',vi:'collocation_vi',th:'collocation_th',my:'collocation_my',km:'collocation_km',bn:'collocation_bn'};
     let explain='';
     if(explainLang==='en'){
       explain=`"${w.collocations}" — ${w.collocation_meaning||w.definition_en||''}`;
     } else {
-      const t=w[LANG_KEY[explainLang]]||'';
+      const t=w[COLLOC_KEY[explainLang]]||'';
       explain=`"${w.collocations}"`;
       if(t)explain+=` — ${t}`;
-      else explain+=` — ${w.collocation_meaning||''}`;
+      else explain+=` — ${w.collocation_meaning||''} (translation coming soon)`;
     }
     html+=`<div class="review-explain">💡 ${explain}</div>`;
     item.innerHTML=html;
