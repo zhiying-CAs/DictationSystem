@@ -39,11 +39,11 @@ body{display:flex;flex-direction:column;}
 .fc-progress-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
 .fc-progress-fill{height:100%;background:linear-gradient(90deg,var(--g3),var(--g5));border-radius:3px;transition:width 0.4s;}
 .fc-wrap{display:flex;align-items:center;justify-content:center;height:100%;min-height:0;overflow:hidden;perspective:1500px;}
-.flashcard{width:100%;max-width:400px;height:100%;position:relative;transform-style:preserve-3d;transition:transform 0.6s cubic-bezier(0.4,0,0.2,1);cursor:pointer;}
-.flashcard.flipped{transform:rotateY(180deg);}
-.fc-face{position:absolute;inset:0;backface-visibility:hidden;border-radius:24px;box-shadow:0 12px 40px rgba(45,109,45,0.2);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;text-align:center;overflow:hidden;}
+.flashcard{width:100%;max-width:400px;height:100%;position:relative;-webkit-transform-style:preserve-3d;transform-style:preserve-3d;-webkit-transition:-webkit-transform 0.6s cubic-bezier(0.4,0,0.2,1);transition:transform 0.6s cubic-bezier(0.4,0,0.2,1);cursor:pointer;}
+.flashcard.flipped{-webkit-transform:rotateY(180deg);transform:rotateY(180deg);}
+.fc-face{position:absolute;inset:0;-webkit-backface-visibility:hidden;backface-visibility:hidden;-webkit-transform:rotateY(0deg);transform:rotateY(0deg);border-radius:24px;box-shadow:0 12px 40px rgba(45,109,45,0.2);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;text-align:center;overflow:hidden;}
 .fc-front{background:linear-gradient(145deg,#FFFFFF,#F0F9E8);border:2px solid var(--g4);}
-.fc-back{background:linear-gradient(145deg,var(--g2),var(--g3));transform:rotateY(180deg);border:2px solid var(--g2);}
+.fc-back{background:linear-gradient(145deg,var(--g2),var(--g3));-webkit-transform:rotateY(180deg);transform:rotateY(180deg);border:2px solid var(--g2);}
 /* Decorative circles */
 .fc-deco{position:absolute;border-radius:50%;opacity:0.1;}
 .fc-deco1{width:120px;height:120px;background:var(--g3);top:-40px;right:-40px;}
@@ -472,6 +472,9 @@ function webSpeak(text,btn){
   gameWords = uniqueWordPartners.slice(0, Math.min(numPartners, uniqueWordPartners.length));
 
   api({action:'updateRecord',record_id:recordId,words_tested:gameWords.map(w=>w.word_id).join(','),status:'pair_drop_started'});
+  // Save the exact rows chosen so Task 4 & 5 use the SAME collocations
+  sessionStorage.setItem('ds_session_word_ids', gameWords.map(w=>w.word_id).join(','));
+  sessionStorage.setItem('ds_session_words', JSON.stringify(gameWords));
 
   showCard(0);
   hideLoading();
