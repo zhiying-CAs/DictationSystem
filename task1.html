@@ -148,6 +148,28 @@ html,body{height:100%;height:100dvh;font-family:'Nunito',sans-serif;background:v
   .speaker-btn{width:52px;height:52px;font-size:22px;}
   .ctrl-btn .icon{font-size:18px;}
 }
+
+/* === UNIFIED TOPBAR === */
+.u-topbar{position:relative;z-index:10;display:flex;align-items:flex-start;justify-content:space-between;padding:8px 14px 4px;flex-shrink:0;}
+.u-logo{height:22px;object-fit:contain;}
+.u-session{text-align:right;}
+.u-session-code{background:var(--white);border:1.5px solid var(--border);border-radius:14px;padding:3px 10px;font-size:11px;font-weight:800;color:var(--g1);letter-spacing:1px;font-family:monospace;display:inline-block;}
+.u-session-name{font-size:11px;font-weight:800;color:var(--muted);margin-top:3px;}
+/* === UNIFIED EXIT CHOICE MODAL === */
+.u-exit-choice{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:250;display:none;align-items:center;justify-content:center;padding:24px;}
+.u-exit-choice.show{display:flex;}
+.u-exit-box{background:var(--white);border-radius:20px;padding:24px;width:100%;max-width:360px;text-align:center;}
+.u-exit-box h3{font-size:19px;font-weight:900;color:var(--g1);margin-bottom:6px;}
+.u-exit-box p{font-size:13px;color:var(--muted);font-weight:600;margin-bottom:18px;}
+.u-exit-btns{display:flex;flex-direction:column;gap:10px;}
+.u-exit-btns button{padding:14px;border:none;border-radius:13px;font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;cursor:pointer;}
+.u-btn-continue{background:linear-gradient(135deg,var(--g2),var(--g3));color:white;}
+.u-btn-home{background:var(--amber-bg,#FEF3C7);color:#92400E;border:1.5px solid var(--amber,#F59E0B);}
+.u-btn-cancel{background:var(--g7);color:var(--muted);border:1.5px solid var(--border);}
+.u-pin-input{width:100%;padding:12px;border:1.5px solid var(--border);border-radius:12px;font-size:18px;font-weight:800;letter-spacing:4px;text-align:center;outline:none;margin-bottom:12px;font-family:'Nunito',sans-serif;}
+.u-pin-err{font-size:12px;color:var(--danger);font-weight:700;margin-bottom:8px;display:none;}
+.u-pin-err.show{display:block;}
+
 </style>
 </head>
 <body>
@@ -186,14 +208,17 @@ html,body{height:100%;height:100dvh;font-family:'Nunito',sans-serif;background:v
   </div>
   <div class="result-btns">
     <button class="btn-next-task" id="btnNextTask" onclick="goNextTask()">Continue to next task ➜</button>
-    <button class="btn-stop" onclick="showExitModal('result')">Stop here for today</button>
+    <button class="btn-stop" onclick="uOpenExit()">Stop here for today</button>
   </div>
 </div>
 
 <!-- TOP BAR -->
-<div class="topbar">
-  <img src="ZPS_header_75pc.jpg" alt="ZPS" class="logo-img" onerror="this.style.display='none'">
-  <div class="session-code" id="sessionCodeDisplay">—</div>
+<div class="u-topbar">
+  <img src="ZPS_header_75pc.jpg" alt="ZPS" class="u-logo" onerror="this.style.display='none'">
+  <div class="u-session">
+    <div class="u-session-code" id="sessionCodeDisplay">—</div>
+    <div class="u-session-name" id="uSessionName">—</div>
+  </div>
 </div>
 
 <!-- MAIN -->
@@ -257,12 +282,45 @@ html,body{height:100%;height:100dvh;font-family:'Nunito',sans-serif;background:v
   <!-- Bottom bar -->
   <div class="bottom-bar">
     <div class="unit-info" id="unitInfo">—</div>
-    <button class="exit-btn" onclick="showExitModal('task')">Exit 🔐</button>
+    <button class="exit-btn" onclick="uOpenExit()">Exit 🔐</button>
   </div>
 
 </div>
 
 <script>
+
+// === UNIFIED EXIT ===
+function uOpenExit(){
+  document.getElementById('uExitChoice').classList.add('show');
+  document.getElementById('uExitPin').value='';
+  document.getElementById('uPinErr').classList.remove('show');
+  document.getElementById('uPinBtns').style.display='flex';
+  document.getElementById('uChoiceBtns').style.display='none';
+  document.getElementById('uExitPin').style.display='block';
+  setTimeout(()=>document.getElementById('uExitPin').focus(),200);
+}
+function uCloseExit(){document.getElementById('uExitChoice').classList.remove('show');}
+async function uVerifyPin(){
+  const pin=document.getElementById('uExitPin').value.trim();if(!pin)return;
+  try{
+    const res=await (async()=>{const q=new URLSearchParams({action:'verifyPin',pin}).toString();const r=await fetch(API+'?'+q);return r.json();})();
+    if(res.verified){
+      document.getElementById('uExitPin').style.display='none';
+      document.getElementById('uPinBtns').style.display='none';
+      document.getElementById('uChoiceBtns').style.display='flex';
+      document.getElementById('uPinErr').classList.remove('show');
+    }else{
+      document.getElementById('uPinErr').classList.add('show');
+      document.getElementById('uExitPin').value='';
+    }
+  }catch(e){document.getElementById('uPinErr').classList.add('show');}
+}
+async function uPauseExit(){
+  try{ if(typeof stopTenseMusic==='function')stopTenseMusic(); if(typeof stopBgMusic==='function')stopBgMusic(); }catch(e){}
+  try{const q=new URLSearchParams({action:'updateRecord',record_id:(window.recordId||sessionStorage.getItem('ds_record_id')||''),status:'paused'}).toString();await fetch(API+'?'+q);}catch(e){}
+  window.location.href='index.html';
+}
+
 const API = 'https://script.google.com/macros/s/AKfycbw76QSB-lv4pA-6s_m6vNk_oGEdeLqrsqkoBGu6j-XMulb-maiAGkqqhfqqEmGfcbn3Ow/exec';
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent';
 
@@ -312,6 +370,8 @@ let autoTimer    = null;
   document.getElementById('sessionCodeDisplay').textContent = recordId || '—';
   document.getElementById('resultCode').textContent = recordId || '—';
   document.getElementById('infoName').textContent = student.name;
+  document.getElementById('uSessionName').textContent = student.name;
+  window.recordId = recordId;
   document.getElementById('infoMeta').textContent = setup.series + ' · ' + setup.level;
   document.getElementById('unitInfo').textContent =
     setup.unit_from === setup.unit_to
@@ -723,5 +783,23 @@ function shuffle(arr){
 history.pushState(null,'',location.href);
 window.addEventListener('popstate',()=>history.pushState(null,'',location.href));
 </script>
+
+<div class="u-exit-choice" id="uExitChoice">
+  <div class="u-exit-box">
+    <h3>🔐 Teacher PIN</h3>
+    <p>Enter PIN to pause or exit this task.</p>
+    <div class="u-pin-err" id="uPinErr">Wrong PIN. Try again.</div>
+    <input type="password" class="u-pin-input" id="uExitPin" placeholder="••••••" maxlength="10" onkeydown="if(event.key==='Enter')uVerifyPin()">
+    <div class="u-exit-btns" id="uPinBtns">
+      <button class="u-btn-continue" onclick="uVerifyPin()">Unlock 🔓</button>
+      <button class="u-btn-cancel" onclick="uCloseExit()">Cancel</button>
+    </div>
+    <div class="u-exit-btns" id="uChoiceBtns" style="display:none">
+      <button class="u-btn-continue" onclick="uCloseExit()">▶️ Continue this task</button>
+      <button class="u-btn-home" onclick="uPauseExit()">🏠 Pause & go to home</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

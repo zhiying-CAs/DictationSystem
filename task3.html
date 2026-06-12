@@ -180,34 +180,39 @@ html,body{height:100%;height:100dvh;max-height:100dvh;font-family:'Nunito',sans-
   .target-word{font-size:28px;}
   .target-display{padding:8px;}
 }
+
+/* === UNIFIED TOPBAR === */
+.u-topbar{position:relative;z-index:10;display:flex;align-items:flex-start;justify-content:space-between;padding:8px 14px 4px;flex-shrink:0;}
+.u-logo{height:22px;object-fit:contain;}
+.u-session{text-align:right;}
+.u-session-code{background:var(--white);border:1.5px solid var(--border);border-radius:14px;padding:3px 10px;font-size:11px;font-weight:800;color:var(--g1);letter-spacing:1px;font-family:monospace;display:inline-block;}
+.u-session-name{font-size:11px;font-weight:800;color:var(--muted);margin-top:3px;}
+/* === UNIFIED EXIT CHOICE MODAL === */
+.u-exit-choice{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:250;display:none;align-items:center;justify-content:center;padding:24px;}
+.u-exit-choice.show{display:flex;}
+.u-exit-box{background:var(--white);border-radius:20px;padding:24px;width:100%;max-width:360px;text-align:center;}
+.u-exit-box h3{font-size:19px;font-weight:900;color:var(--g1);margin-bottom:6px;}
+.u-exit-box p{font-size:13px;color:var(--muted);font-weight:600;margin-bottom:18px;}
+.u-exit-btns{display:flex;flex-direction:column;gap:10px;}
+.u-exit-btns button{padding:14px;border:none;border-radius:13px;font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;cursor:pointer;}
+.u-btn-continue{background:linear-gradient(135deg,var(--g2),var(--g3));color:white;}
+.u-btn-home{background:var(--amber-bg,#FEF3C7);color:#92400E;border:1.5px solid var(--amber,#F59E0B);}
+.u-btn-cancel{background:var(--g7);color:var(--muted);border:1.5px solid var(--border);}
+.u-pin-input{width:100%;padding:12px;border:1.5px solid var(--border);border-radius:12px;font-size:18px;font-weight:800;letter-spacing:4px;text-align:center;outline:none;margin-bottom:12px;font-family:'Nunito',sans-serif;}
+.u-pin-err{font-size:12px;color:var(--danger);font-weight:700;margin-bottom:8px;display:none;}
+.u-pin-err.show{display:block;}
+
 </style>
 </head>
 <body>
+<div style="position:fixed;bottom:10px;left:14px;z-index:90;"><button onclick="uOpenExit()" style="font-size:12px;font-weight:700;color:var(--muted);background:var(--white);border:1.5px solid var(--border);border-radius:14px;padding:5px 12px;cursor:pointer;font-family:Nunito,sans-serif;">Exit 🔐</button></div>
 <div class="bg-blobs"><div class="blob blob1"></div><div class="blob blob2"></div></div>
 <div class="confetti-wrap" id="confettiWrap"></div>
 <div class="overlay" id="overlay"><div class="spinner"></div><div class="overlay-text" id="overlayText">Setting up Pair Drop...</div></div>
 
 <!-- Exit FAB -->
-<div class="exit-fab" id="exitFab" onclick="openExitChoice()">🚪</div>
 
 <!-- Exit choice modal -->
-<div class="exit-choice" id="exitChoice">
-  <div class="exit-choice-box">
-    <h3>🔐 Teacher PIN</h3>
-    <p>Enter PIN to pause or exit this task.</p>
-    <div class="pin-err" id="pinErr">Wrong PIN. Try again.</div>
-    <input type="password" class="pin-input show" id="exitPin" placeholder="••••••" maxlength="10" onkeydown="if(event.key==='Enter')verifyAndShowChoice()">
-    <div class="exit-choice-btns" id="choiceBtns" style="display:none">
-      <button class="btn-continue" onclick="closeExitChoice()">▶️ Continue this task</button>
-      <button class="btn-gohome" onclick="pauseAndExit()">🏠 Pause & go to home</button>
-    </div>
-    <div class="exit-choice-btns" id="pinBtns">
-      <button class="btn-continue" onclick="verifyAndShowChoice()">Unlock 🔓</button>
-      <button class="btn-cancel" onclick="closeExitChoice()">Cancel</button>
-    </div>
-  </div>
-</div>
-
 <!-- Revive modal -->
 <div class="revive-modal" id="reviveModal">
   <div class="revive-box">
@@ -241,9 +246,12 @@ html,body{height:100%;height:100dvh;max-height:100dvh;font-family:'Nunito',sans-
   <div class="result-btns" id="resultBtns"></div>
 </div>
 
-<div class="topbar">
-  <img src="ZPS_header_75pc.jpg" alt="ZPS" class="logo-img" onerror="this.style.display='none'">
-  <div class="session-code" id="sessionCode">—</div>
+<div class="u-topbar">
+  <img src="ZPS_header_75pc.jpg" alt="ZPS" class="u-logo" onerror="this.style.display='none'">
+  <div class="u-session">
+    <div class="u-session-code" id="sessionCode">—</div>
+    <div class="u-session-name" id="uSessionName">—</div>
+  </div>
 </div>
 
 <div class="main">
@@ -301,6 +309,39 @@ html,body{height:100%;height:100dvh;max-height:100dvh;font-family:'Nunito',sans-
 </div>
 
 <script>
+
+// === UNIFIED EXIT ===
+function uOpenExit(){
+  document.getElementById('uExitChoice').classList.add('show');
+  document.getElementById('uExitPin').value='';
+  document.getElementById('uPinErr').classList.remove('show');
+  document.getElementById('uPinBtns').style.display='flex';
+  document.getElementById('uChoiceBtns').style.display='none';
+  document.getElementById('uExitPin').style.display='block';
+  setTimeout(()=>document.getElementById('uExitPin').focus(),200);
+}
+function uCloseExit(){document.getElementById('uExitChoice').classList.remove('show');}
+async function uVerifyPin(){
+  const pin=document.getElementById('uExitPin').value.trim();if(!pin)return;
+  try{
+    const res=await (async()=>{const q=new URLSearchParams({action:'verifyPin',pin}).toString();const r=await fetch(API+'?'+q);return r.json();})();
+    if(res.verified){
+      document.getElementById('uExitPin').style.display='none';
+      document.getElementById('uPinBtns').style.display='none';
+      document.getElementById('uChoiceBtns').style.display='flex';
+      document.getElementById('uPinErr').classList.remove('show');
+    }else{
+      document.getElementById('uPinErr').classList.add('show');
+      document.getElementById('uExitPin').value='';
+    }
+  }catch(e){document.getElementById('uPinErr').classList.add('show');}
+}
+async function uPauseExit(){
+  try{ if(typeof stopTenseMusic==='function')stopTenseMusic(); if(typeof stopBgMusic==='function')stopBgMusic(); }catch(e){}
+  try{const q=new URLSearchParams({action:'updateRecord',record_id:(window.recordId||sessionStorage.getItem('ds_record_id')||''),status:'paused'}).toString();await fetch(API+'?'+q);}catch(e){}
+  window.location.href='index.html';
+}
+
 const API='https://script.google.com/macros/s/AKfycbw76QSB-lv4pA-6s_m6vNk_oGEdeLqrsqkoBGu6j-XMulb-maiAGkqqhfqqEmGfcbn3Ow/exec';
 const GEMINI_API_BASE='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent';
 
@@ -384,6 +425,8 @@ function webSpeak(text,btn){
   config=JSON.parse(sessionStorage.getItem('ds_config')||'{}');
   recordId=sessionStorage.getItem('ds_record_id')||'';
   document.getElementById('sessionCode').textContent=recordId||'—';
+  document.getElementById('uSessionName').textContent=student.name||'—';
+  window.recordId=recordId;
   if(!student.name||!setup.series){window.location.href='index.html';return;}
 
   numPartners=parseInt(setup.task3_collocations)||12;
@@ -626,7 +669,7 @@ function endGame(passed,reason){
   const btns=document.getElementById('resultBtns');btns.innerHTML='';
   if(passed){const next=document.createElement('button');next.className='btn-next';next.textContent='Next task ➜';next.onclick=goNext;btns.appendChild(next);}
   else{const redo=document.createElement('button');redo.className='btn-redo';redo.textContent='Try again 🔄';redo.onclick=()=>location.reload();btns.appendChild(redo);}
-  const stop=document.createElement('button');stop.className='btn-stop';stop.textContent='Stop here';stop.onclick=openExitChoice;btns.appendChild(stop);
+  const stop=document.createElement('button');stop.className='btn-stop';stop.textContent='Stop here';stop.onclick=uOpenExit;btns.appendChild(stop);
 }
 function bigConfetti(){const wrap=document.getElementById('confettiWrap');const colors=['#4A9A3A','#6AAF45','#F59E0B','#3B82F6','#EC4899','#8B5CF6'];for(let i=0;i<60;i++){const p=document.createElement('div');p.className='confetti-piece';p.style.cssText=`left:${Math.random()*100}%;background:${colors[Math.floor(Math.random()*colors.length)]};width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;border-radius:${Math.random()>0.5?'50%':'2px'};--dur:${1.5+Math.random()*2}s;--delay:${Math.random()*1.5}s;`;wrap.appendChild(p);}setTimeout(()=>wrap.innerHTML='',5000);}
 
@@ -673,5 +716,23 @@ async function pauseAndExit(){
 history.pushState(null,'',location.href);
 window.addEventListener('popstate',()=>history.pushState(null,'',location.href));
 </script>
+
+<div class="u-exit-choice" id="uExitChoice">
+  <div class="u-exit-box">
+    <h3>🔐 Teacher PIN</h3>
+    <p>Enter PIN to pause or exit this task.</p>
+    <div class="u-pin-err" id="uPinErr">Wrong PIN. Try again.</div>
+    <input type="password" class="u-pin-input" id="uExitPin" placeholder="••••••" maxlength="10" onkeydown="if(event.key==='Enter')uVerifyPin()">
+    <div class="u-exit-btns" id="uPinBtns">
+      <button class="u-btn-continue" onclick="uVerifyPin()">Unlock 🔓</button>
+      <button class="u-btn-cancel" onclick="uCloseExit()">Cancel</button>
+    </div>
+    <div class="u-exit-btns" id="uChoiceBtns" style="display:none">
+      <button class="u-btn-continue" onclick="uCloseExit()">▶️ Continue this task</button>
+      <button class="u-btn-home" onclick="uPauseExit()">🏠 Pause & go to home</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
