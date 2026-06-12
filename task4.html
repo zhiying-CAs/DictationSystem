@@ -95,6 +95,9 @@ body{display:flex;flex-direction:column;}
 .review-answer b{color:var(--g1);}
 .review-explain{font-size:13px;font-weight:600;color:var(--text);margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);line-height:1.5;}
 .review-explain-lang{font-size:13px;color:var(--g2);margin-top:4px;font-weight:700;}
+.raise-hand-btn{margin-top:10px;width:100%;padding:9px;border:1.5px solid var(--amber);border-radius:10px;background:var(--amber-bg);color:#92400E;font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;cursor:pointer;transition:all 0.15s;}
+.raise-hand-btn:active{transform:scale(0.97);}
+.raise-hand-btn.raised{background:var(--g6);border-color:var(--g4);color:var(--g1);cursor:default;}
 .result-btns{display:flex;flex-direction:column;gap:8px;width:100%;max-width:320px;padding-bottom:20px;}
 .result-btns button{padding:14px;border:none;border-radius:13px;font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;cursor:pointer;}
 .btn-next{background:linear-gradient(135deg,var(--g2),var(--g3));color:white;}
@@ -344,6 +347,7 @@ function showResult(){
   api({action:'updateRecord',record_id:recordId,
     score:score+'/'+total,
     wrong_words:answers.filter(a=>!a.isCorrect).map(a=>a.word.word_id).join(','),
+    task4_results:answers.map(a=>a.word.word_id+':'+(a.isCorrect?'1':'0')).join(' '),
     status:passed?'mind_check_done':'mind_check_failed'});
 
   const ov=document.getElementById('resultOverlay');ov.classList.add('show');
@@ -414,8 +418,38 @@ function renderReview(){
     }
     html+=`<div class="review-explain">💡 ${explain}</div>`;
     item.innerHTML=html;
+    // Raise hand button (every question, correct or wrong)
+    const rh=document.createElement('button');
+    rh.className='raise-hand-btn';
+    rh.dataset.qi=i;
+    rh.innerHTML='🙋 Ask teacher';
+    rh.onclick=()=>raiseHand(i,rh);
+    item.appendChild(rh);
     list.appendChild(item);
   });
+}
+
+// ===== RAISE HAND =====
+let raisedHands=new Set();
+async function raiseHand(qi,btn){
+  if(raisedHands.has(qi))return;
+  raisedHands.add(qi);
+  const a=answers[qi];
+  btn.classList.add('raised');
+  btn.innerHTML='✋ Teacher notified!';
+  btn.disabled=true;
+  // Save to HelpRequests
+  try{
+    await api({action:'saveHelpRequest',
+      record_id:recordId,
+      student_name:student.name||'',
+      task:'Mind Check (Task 4)',
+      word_or_question:'['+a.word.word_id+'] '+a.question,
+      student_answer:a.picked,
+      correct_answer:a.correct});
+    // Mark raise_hand in Records
+    await api({action:'updateRecord',record_id:recordId,raise_hand:'yes'});
+  }catch(e){}
 }
 
 function bigConfetti(){const wrap=document.getElementById('confettiWrap');const colors=['#4A9A3A','#6AAF45','#F59E0B','#3B82F6','#EC4899','#8B5CF6'];for(let i=0;i<60;i++){const p=document.createElement('div');p.className='confetti-piece';p.style.cssText=`left:${Math.random()*100}%;background:${colors[Math.floor(Math.random()*colors.length)]};width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;border-radius:${Math.random()>0.5?'50%':'2px'};--dur:${1.5+Math.random()*2}s;--delay:${Math.random()*1.5}s;`;wrap.appendChild(p);}setTimeout(()=>wrap.innerHTML='',5000);}
