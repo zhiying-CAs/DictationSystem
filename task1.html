@@ -382,7 +382,7 @@ let autoTimer    = null;
   document.getElementById('infoMeta').textContent = setup.series + ' · ' + setup.level;
   document.getElementById('unitInfo').textContent =
     setup.unit_from === setup.unit_to
-      ? 'Unit ' + setup.unit_from + (setup.half !== 'all' ? ' (' + setup.half + ' half)' : '')
+      ? 'Unit ' + setup.unit_from + (setup.range_mode === 'range' && setup.range_from ? ' (words ' + setup.range_from + '–' + setup.range_to + ')' : '')
       : 'Units ' + setup.unit_from + '–' + setup.unit_to;
 
   // Get Gemini key from config

@@ -608,7 +608,7 @@ function dropWords(options){
     const maxX=Math.max(4,areaW-elW-4);
     const x=Math.min(maxX,Math.max(4,(areaW/(lanes+1))*(i+1)-elW/2+(Math.random()*30-15)));
     el.style.left=x+'px';
-    const fw={el,opt,y:-50-(i*90),speed:0.45+Math.random()*0.25,caught:false}; // a bit faster
+    const fw={el,opt,y:-50-(i*90),speed:0.35+Math.random()*0.2,caught:false}; // slower for low-proficiency
     el.onclick=()=>catchWord(fw);
     fallingWords.push(fw);
   });
@@ -620,7 +620,7 @@ function animateFall(){
   const areaH=area.clientHeight;
   fallingWords.forEach(fw=>{
     if(fw.caught)return;
-    fw.y+=fw.speed*2.3;
+    fw.y+=fw.speed*2.0;
     fw.el.style.top=fw.y+'px';
     if(fw.y>areaH){
       fw.caught=true;fw.el.remove();
