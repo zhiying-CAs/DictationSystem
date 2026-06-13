@@ -608,7 +608,7 @@ function dropWords(options){
     const maxX=Math.max(4,areaW-elW-4);
     const x=Math.min(maxX,Math.max(4,(areaW/(lanes+1))*(i+1)-elW/2+(Math.random()*30-15)));
     el.style.left=x+'px';
-    const fw={el,opt,y:-50-(i*90),speed:0.35+Math.random()*0.2,caught:false}; // SLOWER speed
+    const fw={el,opt,y:-50-(i*90),speed:0.45+Math.random()*0.25,caught:false}; // a bit faster
     el.onclick=()=>catchWord(fw);
     fallingWords.push(fw);
   });
@@ -620,7 +620,7 @@ function animateFall(){
   const areaH=area.clientHeight;
   fallingWords.forEach(fw=>{
     if(fw.caught)return;
-    fw.y+=fw.speed*2.0;
+    fw.y+=fw.speed*2.3;
     fw.el.style.top=fw.y+'px';
     if(fw.y>areaH){
       fw.caught=true;fw.el.remove();
@@ -796,7 +796,7 @@ window.addEventListener('popstate',()=>history.pushState(null,'',location.href))
   function sprout(x,y){
     const s=document.createElement('div');
     s.textContent='🌱';
-    s.style.cssText='position:fixed;left:'+x+'px;top:'+y+'px;font-size:18px;pointer-events:none;z-index:99999;transform:translate(-50%,-50%);animation:sproutPop 0.6s ease-out forwards;';
+    s.style.cssText='position:fixed;left:'+x+'px;top:'+y+'px;font-size:28px;pointer-events:none;z-index:99999;transform:translate(-50%,-50%);animation:sproutPop 0.6s ease-out forwards;';
     document.body.appendChild(s);
     setTimeout(()=>s.remove(),650);
   }
