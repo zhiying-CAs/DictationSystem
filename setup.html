@@ -229,6 +229,22 @@ html,body{min-height:100vh;min-height:100dvh;font-family:'Nunito',sans-serif;bac
         </div>
 
         <div class="field">
+          <label>Mind Check & Word Detective — questions to pass</label>
+          <select id="passMark">
+            <option value="auto" selected>Auto (75% of questions)</option>
+            <option value="5">5 correct</option>
+            <option value="6">6 correct</option>
+            <option value="7">7 correct</option>
+            <option value="8">8 correct</option>
+            <option value="9">9 correct</option>
+            <option value="10">10 correct</option>
+            <option value="12">12 correct</option>
+            <option value="15">15 correct</option>
+            <option value="0">No limit (just finish)</option>
+          </select>
+        </div>
+
+        <div class="field">
           <label>Show definition during Spell Storm?</label>
           <select id="showDefinition">
             <option value="yes">Yes — show EL definition</option>
@@ -573,6 +589,7 @@ async function startSession(){
   const order   = document.getElementById('wordOrder').value;
   const repeat  = parseInt(document.getElementById('repeatCount').value) || 3;
   const task3Colloc = parseInt(document.getElementById('numCollocations').value) || 12;
+  const passMark = document.getElementById('passMark').value || 'auto';
 
   // Number of words
   const numSel = document.getElementById('numWords').value;
@@ -598,6 +615,7 @@ async function startSession(){
     word_order:      order,
     repeat_count:    repeat,
     task3_collocations: task3Colloc,
+    pass_mark:          passMark,
     num_words:       numWords,
     task_enabled:    taskEnabled,
     task_order:      taskOrder,
