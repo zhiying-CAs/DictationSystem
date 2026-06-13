@@ -454,33 +454,50 @@ function webSpeak(text,btn){
   lives=maxLives;
   gameSeconds=(parseInt(config.task3_timeout_minutes)||10)*60;
 
-  let cached=sessionStorage.getItem('ds_words_all');
-  if(cached){try{allWords=JSON.parse(cached);}catch(e){allWords=[];}}
-  if(!allWords.length){
+  // === Task 3 MUST use the same words as Task 1 ===
+  // Read Task 1's word list (the master list for this session)
+  let task1Words=[];
+  const t1=sessionStorage.getItem('ds_words');
+  if(t1){try{task1Words=JSON.parse(t1);}catch(e){task1Words=[];}}
+
+  // Get the word_ids Task 1 tested
+  const task1Ids = task1Words.map(w=>w.word_id).filter(Boolean);
+
+  // Fetch ALL collocation rows for those exact words (mode=all gives every row incl. non-primary)
+  let allRows=[];
+  if(task1Ids.length){
     try{
+      // getWordsByWordList: fetch every row whose word matches Task 1's words
       const res=await api({action:'getWords',series:setup.series,level:setup.level,
-        unit_from:setup.unit_from,unit_to:setup.unit_to,half:setup.half||'all',mode:'all'});
-      if(!res.success||!res.data.length){alert('No words found.');window.location.href='setup.html';return;}
-      allWords=res.data;sessionStorage.setItem('ds_words_all',JSON.stringify(allWords));
-    }catch(e){alert('Connection error.');return;}
+        unit_from:setup.unit_from,unit_to:setup.unit_to,half:'all',mode:'all'});
+      if(res.success) allRows=res.data;
+    }catch(e){}
   }
 
-  // Group collocation rows by target word, then pick ONE random collocation per word.
-  // This keeps the SAME words as Task 1 (connectivity) but avoids the same target
-  // appearing twice with different partners (which caused confusion).
+  // Keep only rows whose WORD is in Task 1's list (this guarantees Task 3 ⊆ Task 1)
+  const task1WordSet=new Set(task1Words.map(w=>String(w.word).toLowerCase().trim()));
+  const eligibleRows=allRows.filter(r=>
+    r.collocations && r.collocations.trim() &&
+    task1WordSet.has(String(r.word).toLowerCase().trim())
+  );
+
+  // Group by word → pick ONE random collocation per word (avoids same target twice)
   const byWord = {};
-  allWords.forEach(w=>{
-    if(!w.collocations || !w.collocations.trim()) return;
-    const key = w.word.toLowerCase().trim();
-    if(!byWord[key]) byWord[key] = [];
+  eligibleRows.forEach(w=>{
+    const key = String(w.word).toLowerCase().trim();
+    if(!byWord[key]) byWord[key]=[];
     byWord[key].push(w);
   });
-  // For each unique word, pick one random collocation row
-  const uniqueWordPartners = Object.values(byWord).map(rows=>{
-    return rows[Math.floor(Math.random()*rows.length)];
-  });
+  const uniqueWordPartners = Object.values(byWord).map(rows=>rows[Math.floor(Math.random()*rows.length)]);
+
+  // Word partners出场顺序 random, but always from Task 1's words
   shuffle(uniqueWordPartners);
   gameWords = uniqueWordPartners.slice(0, Math.min(numPartners, uniqueWordPartners.length));
+
+  if(!gameWords.length){
+    alert('No Word Partners found for these words. Please check the Master sheet has collocations for this unit.');
+    window.location.href='setup.html';return;
+  }
 
   api({action:'updateRecord',record_id:recordId,words_tested:gameWords.map(w=>w.word_id).join(','),status:'pair_drop_started'});
   // Save the exact rows chosen so Task 4 & 5 use the SAME collocations

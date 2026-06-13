@@ -142,13 +142,26 @@ html,body{min-height:100vh;min-height:100dvh;font-family:'Nunito',sans-serif;bac
         </div>
       </div>
 
-      <!-- Half selector — only shows for single unit -->
-      <div class="field" id="halfField" style="display:none">
-        <label>Which half?</label>
-        <div class="half-row">
-          <div class="half-btn selected" onclick="selectHalf('all',this)">All words</div>
-          <div class="half-btn" onclick="selectHalf('first',this)">First half</div>
-          <div class="half-btn" onclick="selectHalf('second',this)">Second half</div>
+      <!-- Word range — only shows for single unit -->
+      <div class="field" id="rangeField" style="display:none">
+        <label>Which words?</label>
+        <div class="half-row" style="grid-template-columns:repeat(2,1fr);">
+          <div class="half-btn selected" id="rangeAllBtn" onclick="selectRangeMode('all',this)">All words</div>
+          <div class="half-btn" id="rangeCustomBtn" onclick="selectRangeMode('range',this)">Choose range</div>
+        </div>
+        <div id="rangeInputs" style="display:none;margin-top:10px;">
+          <div class="unit-row">
+            <div>
+              <label style="font-size:11px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">Word from</label>
+              <input type="number" id="rangeFrom" min="1" value="1" onchange="updateWordCount()" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:10px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;">
+            </div>
+            <div class="unit-arrow">→</div>
+            <div>
+              <label style="font-size:11px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">Word to</label>
+              <input type="number" id="rangeTo" min="1" value="50" onchange="updateWordCount()" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:10px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;">
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:6px;">📝 e.g. 1–50 for the first 50 words of this unit</div>
         </div>
       </div>
 
@@ -217,15 +230,14 @@ html,body{min-height:100vh;min-height:100dvh;font-family:'Nunito',sans-serif;bac
         </div>
 
         <div class="field">
-          <label>Pair Drop — number of collocations</label>
-          <select id="numCollocations">
-            <option value="6">6 collocations</option>
-            <option value="8">8 collocations</option>
-            <option value="10">10 collocations</option>
-            <option value="12" selected>12 collocations (default)</option>
-            <option value="15">15 collocations</option>
-            <option value="20">20 collocations</option>
+          <label>Pair Drop / Mind Check / Word Detective — number of Word Partners</label>
+          <select id="numCollocations" onchange="onCollocChange()">
+            <option value="12" selected>12 (default)</option>
+            <option value="custom">Custom number</option>
           </select>
+          <input type="number" id="numCollocCustom" min="1" max="200" placeholder="e.g. 10"
+            style="display:none;margin-top:8px;width:100%;padding:10px;border:1.5px solid var(--border);border-radius:10px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;" onchange="validateColloc()">
+          <div id="collocWarn" style="display:none;font-size:12px;font-weight:700;color:#92400E;background:var(--amber-bg,#FEF3C7);border:1.5px solid var(--amber,#F59E0B);border-radius:10px;padding:8px 12px;margin-top:8px;"></div>
         </div>
 
         <div class="field">
@@ -279,7 +291,7 @@ const API = 'https://script.google.com/macros/s/AKfycbw76QSB-lv4pA-6s_m6vNk_oGEd
 
 let seriesLevels = [];
 let allUnits     = [];
-let selectedHalf = 'all';
+let selectedHalf = 'all'; // deprecated, kept for resume compatibility
 let teacherUnlocked = false;
 let config = {};
 let wordCount = 0;
@@ -436,17 +448,40 @@ function resetUnits(){
     const s=document.getElementById(id);
     s.innerHTML='<option value="">—</option>'; s.disabled=true;
   });
-  document.getElementById('halfField').style.display='none';
+  document.getElementById('rangeField').style.display='none';
   document.getElementById('wordCount').style.display='none';
   document.getElementById('btnStart').disabled=true;
   allUnits=[];
 }
 
-function selectHalf(val, el){
-  selectedHalf=val;
-  document.querySelectorAll('.half-btn').forEach(b=>b.classList.remove('selected'));
-  el.classList.add('selected');
+let rangeMode='all'; // 'all' | 'range'
+function selectRangeMode(val, el){
+  rangeMode=val;
+  document.getElementById('rangeAllBtn').classList.toggle('selected', val==='all');
+  document.getElementById('rangeCustomBtn').classList.toggle('selected', val==='range');
+  document.getElementById('rangeInputs').style.display = (val==='range')?'block':'none';
   updateWordCount();
+}
+
+function onCollocChange(){
+  const sel=document.getElementById('numCollocations').value;
+  document.getElementById('numCollocCustom').style.display = (sel==='custom')?'block':'none';
+  validateColloc();
+}
+function validateColloc(){
+  // Word Partners cannot exceed Task 1 word count
+  const warn=document.getElementById('collocWarn');
+  let want=12;
+  if(document.getElementById('numCollocations').value==='custom'){
+    want=parseInt(document.getElementById('numCollocCustom').value)||0;
+  }
+  if(want>0 && wordCount>0 && want>wordCount){
+    warn.style.display='block';
+    warn.textContent=`⚠️ Oops! You picked ${wordCount} words for Spell Storm, but asked for ${want} Word Partners. Word Partners can't be more than the words being tested. Please choose ${wordCount} or fewer. 😊`;
+    return false;
+  }
+  warn.style.display='none';
+  return true;
 }
 
 async function onUnitChange(){
@@ -455,19 +490,20 @@ async function onUnitChange(){
   const series= document.getElementById('selSeries').value;
   const level = document.getElementById('selLevel').value;
 
-  // Show half selector only for single unit
-  const halfField = document.getElementById('halfField');
+  // Word-range option ONLY for single unit. Cross-unit = All only.
+  const rangeField = document.getElementById('rangeField');
   if(from && to && from===to){
-    halfField.style.display='block';
+    rangeField.style.display='block';
   } else {
-    halfField.style.display='none';
-    selectedHalf='all';
-    document.querySelectorAll('.half-btn').forEach((b,i)=>b.classList.toggle('selected',i===0));
+    rangeField.style.display='none';
+    rangeMode='all';
+    document.getElementById('rangeInputs').style.display='none';
+    document.getElementById('rangeAllBtn').classList.add('selected');
+    document.getElementById('rangeCustomBtn').classList.remove('selected');
   }
 
   if(!from||!to||!series||!level){ document.getElementById('wordCount').style.display='none'; return; }
 
-  // Validate range
   const fi=allUnits.indexOf(from), ti=allUnits.indexOf(to);
   if(fi>ti){ showMsg('⚠️ "From" unit must come before "To" unit.','warn'); document.getElementById('wordCount').style.display='none'; return; }
   clearMsg();
@@ -490,10 +526,11 @@ async function updateWordCount(){
   _wordCountDebounce = setTimeout(()=>doWordCount(series,level,from,to), 120);
 }
 
+let _selectedWords = [];  // the exact words that will be tested (after range filter)
+
 async function doWordCount(series,level,from,to){
   const cacheKey = series+'|'+level;
   try {
-    // Fetch ALL primary words for this series/level ONCE, then count locally
     if(!_wordCountCache[cacheKey]){
       const res = await api({action:'getWords',series,level,unit_from:'__ALL__',unit_to:'__ALL__',half:'all',mode:'primary'});
       _wordCountCache[cacheKey] = (res.success && res.data) ? res.data : [];
@@ -510,17 +547,23 @@ async function doWordCount(series,level,from,to){
     const validUnits=new Set(unitsSet.slice(fromIdx>=0?fromIdx:0, toIdx>=0?toIdx+1:unitsSet.length));
 
     let inRange = all.filter(w=>validUnits.has(String(w.unit)));
-    // Half filter (single unit only)
-    if(String(from)===String(to) && selectedHalf && selectedHalf!=='all' && inRange.length>0){
-      const mid=Math.ceil(inRange.length/2);
-      inRange = selectedHalf==='first' ? inRange.slice(0,mid) : inRange.slice(mid);
+
+    // Word range filter (single unit only)
+    if(String(from)===String(to) && rangeMode==='range' && inRange.length>0){
+      let rf=parseInt(document.getElementById('rangeFrom').value)||1;
+      let rt=parseInt(document.getElementById('rangeTo').value)||inRange.length;
+      rf=Math.max(1,rf); rt=Math.min(inRange.length,rt);
+      if(rf<=rt){ inRange = inRange.slice(rf-1, rt); }
     }
+
+    _selectedWords = inRange;
     wordCount = inRange.length;
     document.getElementById('wordCountNum').textContent = wordCount;
     document.getElementById('wordCount').style.display='flex';
     document.getElementById('btnStart').disabled = wordCount===0;
     if(wordCount===0) showMsg('No words found for this selection.','warn');
     else clearMsg();
+    if(typeof validateColloc==='function') validateColloc();
   } catch(e){}
 }
 
@@ -617,7 +660,12 @@ async function startSession(){
   const showDef = document.getElementById('showDefinition').value;
   const order   = document.getElementById('wordOrder').value;
   const repeat  = parseInt(document.getElementById('repeatCount').value) || 3;
-  const task3Colloc = parseInt(document.getElementById('numCollocations').value) || 12;
+  let task3Colloc = 12;
+  if(document.getElementById('numCollocations').value==='custom'){
+    task3Colloc = parseInt(document.getElementById('numCollocCustom').value) || 12;
+  } else {
+    task3Colloc = parseInt(document.getElementById('numCollocations').value) || 12;
+  }
   const passMark = document.getElementById('passMark').value || 'auto';
 
   // Number of words
@@ -632,6 +680,20 @@ async function startSession(){
 
   if(!series||!level||!from||!to){ showMsg('Please complete all selections.','error'); return; }
   if(wordCount===0){ showMsg('No words found. Please change your selection.','error'); return; }
+  // Validate Word Partner count doesn't exceed word count
+  if(!validateColloc()){ showMsg('Please fix the Word Partners number first.','error'); document.getElementById('teacherPanel').scrollIntoView({behavior:'smooth'}); return; }
+
+  // Build the EXACT Task 1 word list from the selection (already in _selectedWords)
+  let task1Words = _selectedWords.slice();
+  // Apply num_words limit
+  if(numWords!=='all'){
+    const n=parseInt(numWords);
+    if(!isNaN(n)&&n>0&&n<task1Words.length) task1Words=task1Words.slice(0,n);
+  }
+  // Apply order (random shuffles; sequential keeps sheet order)
+  if(order==='random'){
+    for(let i=task1Words.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[task1Words[i],task1Words[j]]=[task1Words[j],task1Words[i]];}
+  }
 
   showLoading('Setting up your session...');
 
@@ -639,7 +701,9 @@ async function startSession(){
     series, level,
     unit_from:       from,
     unit_to:         to,
-    half:            selectedHalf,
+    range_mode:      rangeMode,
+    range_from:      rangeMode==='range'?parseInt(document.getElementById('rangeFrom').value)||1:null,
+    range_to:        rangeMode==='range'?parseInt(document.getElementById('rangeTo').value)||wordCount:null,
     show_definition: showDef,
     word_order:      order,
     repeat_count:    repeat,
@@ -648,9 +712,16 @@ async function startSession(){
     num_words:       numWords,
     task_enabled:    taskEnabled,
     task_order:      taskOrder,
-    word_count:      wordCount
+    word_count:      task1Words.length
   };
   sessionStorage.setItem('ds_setup', JSON.stringify(setup));
+  // KEY: save the exact Task 1 words (this is the master list all tasks inherit from)
+  sessionStorage.setItem('ds_task1_words', JSON.stringify(task1Words));
+  // Clear stale caches from previous sessions
+  sessionStorage.removeItem('ds_words');
+  sessionStorage.removeItem('ds_words_all');
+  sessionStorage.removeItem('ds_session_words');
+  sessionStorage.removeItem('ds_session_word_ids');
 
   // Create record in sheet
   try {
@@ -663,7 +734,7 @@ async function startSession(){
       series, level,
       unit_from:    from,
       unit_to:      to,
-      half:         selectedHalf,
+      half:         'all',
       task:         'T1',
       status:       'in_progress'
     });

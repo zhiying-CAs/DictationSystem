@@ -391,37 +391,38 @@ let autoTimer    = null;
   // Read teacher settings
   repeatCount = parseInt(setup.repeat_count) || 3;
 
-  // Load words
+  // Load words — use the EXACT list chosen in setup (already filtered + ordered)
   try {
-    const res = await api({
-      action:    'getWords',
-      series:    setup.series,
-      level:     setup.level,
-      unit_from: setup.unit_from,
-      unit_to:   setup.unit_to,
-      half:      setup.half || 'all',
-      mode:      'primary'
-    });
-    if(!res.success || !res.data.length){
+    const preselected = sessionStorage.getItem('ds_task1_words');
+    if(preselected){
+      words = JSON.parse(preselected);
+    } else {
+      // Fallback: query (e.g. resumed session)
+      const res = await api({
+        action:    'getWords',
+        series:    setup.series,
+        level:     setup.level,
+        unit_from: setup.unit_from,
+        unit_to:   setup.unit_to,
+        half:      'all',
+        mode:      'primary'
+      });
+      if(!res.success || !res.data.length){
+        hideLoading();
+        alert('No words found. Please go back and check your selection.');
+        window.location.href = 'setup.html';
+        return;
+      }
+      words = res.data;
+    }
+    if(!words.length){
       hideLoading();
       alert('No words found. Please go back and check your selection.');
       window.location.href = 'setup.html';
       return;
     }
-    words = res.data;
+    // Task 1 word list IS the master list — save for Task 3 to inherit
     sessionStorage.setItem('ds_words', JSON.stringify(words));
-    if(setup.word_order === 'random') shuffle(words);
-
-    // Apply num_words limit
-    const limit = setup.num_words;
-    if(limit && limit !== 'all'){
-      const n = parseInt(limit);
-      if(!isNaN(n) && n > 0 && n < words.length){
-        words = setup.word_order === 'random'
-          ? words.slice(0, n)
-          : words.slice(0, n);
-      }
-    }
   } catch(e){
     hideLoading();
     alert('Connection error. Please refresh.');
