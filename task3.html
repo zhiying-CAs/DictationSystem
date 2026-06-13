@@ -411,7 +411,7 @@ async function speakPartner(e){
       const key=config.gemini_api_key||'';
       const voice=config.gemini_voice||'Leda';
       if(key){
-        const prompt=`Read this English phrase clearly and naturally for a primary school student: "${text}"`;
+        const prompt=`You are a warm, friendly primary school English teacher. Read the word partners "${text}" aloud clearly, slowly, and naturally, with gentle human warmth — the way a kind teacher would when teaching a young child how the words sound together. Say only the phrase, nothing else.`;
         const resp=await fetch(`${GEMINI_API_BASE}?key=${key}`,{method:'POST',headers:{'Content-Type':'application/json'},
           body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voice}}}}})});
         const data=await resp.json();

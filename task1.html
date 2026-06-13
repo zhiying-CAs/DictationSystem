@@ -615,7 +615,7 @@ async function fetchTTS(word){
   const key   = config.gemini_api_key || geminiKey;
   if(!key) return null;
   try {
-    const prompt = `Read this English word clearly and naturally, as if speaking to a primary school student: "${word}"`;
+    const prompt = `You are a warm, friendly primary school English teacher reading a spelling word aloud to a young learner. Say the single word "${word}" clearly, slowly, and gently, with natural human warmth — pronounce it the way a kind teacher would when helping a child spell it. Say only the word, nothing else.`;
     const resp = await fetch(`${GEMINI_API_BASE}?key=${key}`,{
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
