@@ -1538,5 +1538,50 @@ window.addEventListener('popstate',()=>history.pushState(null,'',location.href))
   </div>
 </div>
 
+<script>
+/* === GLOBAL CLICK SPROUT EFFECT 🌱 + sound === */
+(function(){
+  // Click sound via Web Audio (short pleasant pop)
+  let _cax=null;
+  function _ctx(){if(!_cax)_cax=new(window.AudioContext||window.webkitAudioContext)();return _cax;}
+  function clickSound(){
+    try{
+      const c=_ctx();const o=c.createOscillator();const g=c.createGain();
+      o.connect(g);g.connect(c.destination);
+      o.type='sine';o.frequency.setValueAtTime(680,c.currentTime);
+      o.frequency.exponentialRampToValueAtTime(1100,c.currentTime+0.06);
+      g.gain.setValueAtTime(0.0001,c.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.08,c.currentTime+0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+0.12);
+      o.start(c.currentTime);o.stop(c.currentTime+0.14);
+    }catch(e){}
+  }
+  // Sprout visual at click point
+  function sprout(x,y){
+    const s=document.createElement('div');
+    s.textContent='🌱';
+    s.style.cssText='position:fixed;left:'+x+'px;top:'+y+'px;font-size:18px;pointer-events:none;z-index:99999;transform:translate(-50%,-50%);animation:sproutPop 0.6s ease-out forwards;';
+    document.body.appendChild(s);
+    setTimeout(()=>s.remove(),650);
+  }
+  // Inject keyframes once
+  if(!document.getElementById('sproutKeyframes')){
+    const st=document.createElement('style');st.id='sproutKeyframes';
+    st.textContent='@keyframes sproutPop{0%{opacity:0;transform:translate(-50%,-50%) scale(0.3);}30%{opacity:1;transform:translate(-50%,-70%) scale(1.2);}100%{opacity:0;transform:translate(-50%,-130%) scale(0.9);}}';
+    document.head.appendChild(st);
+  }
+  function handle(e){
+    let x,y;
+    if(e.touches&&e.touches[0]){x=e.touches[0].clientX;y=e.touches[0].clientY;}
+    else if(e.changedTouches&&e.changedTouches[0]){x=e.changedTouches[0].clientX;y=e.changedTouches[0].clientY;}
+    else{x=e.clientX;y=e.clientY;}
+    if(x==null||y==null)return;
+    sprout(x,y);clickSound();
+  }
+  // Use pointerdown for unified mouse+touch (fires once per interaction)
+  document.addEventListener('pointerdown',handle,{passive:true});
+})();
+</script>
+
 </body>
 </html>
