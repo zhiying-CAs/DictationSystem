@@ -203,7 +203,7 @@ html,body{min-height:100vh;min-height:100dvh;font-family:'Nunito',sans-serif;bac
           <p class="hint">Tap to enable/disable. Hold & drag to reorder. Spell Storm is always first.</p>
         </div>
 
-        <div class="field">
+        <div class="field" id="numWordsField">
           <label>Number of words to test</label>
           <select id="numWords">
             <option value="all">All words</option>
@@ -216,6 +216,9 @@ html,body{min-height:100vh;min-height:100dvh;font-family:'Nunito',sans-serif;bac
           <input type="number" id="numWordsCustom" min="1" max="200"
             placeholder="Enter number of words"
             style="display:none;margin-top:8px;width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:12px;font-family:Nunito,sans-serif;font-size:15px;font-weight:600;outline:none;">
+          <div id="numWordsSameAsAbove" style="display:none;background:var(--g7);border:1.5px dashed var(--border);border-radius:12px;padding:12px 14px;font-size:14px;font-weight:700;color:var(--muted);">
+            ↑ Same as above — using the word range chosen by the student.
+          </div>
         </div>
 
         <div class="field">
@@ -455,7 +458,26 @@ function selectRangeMode(val, el){
   document.getElementById('rangeAllBtn').classList.toggle('selected', val==='all');
   document.getElementById('rangeCustomBtn').classList.toggle('selected', val==='range');
   document.getElementById('rangeInputs').style.display = (val==='range')?'block':'none';
+  syncNumWordsField();
   updateWordCount();
+}
+
+// When student picks a word range, the teacher "number of words" is redundant → show "Same as above"
+function syncNumWordsField(){
+  const isRange = rangeMode==='range';
+  const sel = document.getElementById('numWords');
+  const customInput = document.getElementById('numWordsCustom');
+  const sameNote = document.getElementById('numWordsSameAsAbove');
+  if(isRange){
+    sel.style.display='none';
+    customInput.style.display='none';
+    sameNote.style.display='block';
+  } else {
+    sel.style.display='block';
+    sameNote.style.display='none';
+    // restore custom input visibility if custom was selected
+    customInput.style.display = (sel.value==='custom') ? 'block' : 'none';
+  }
 }
 
 function onPassMarkChange(){
@@ -501,6 +523,7 @@ async function onUnitChange(){
     document.getElementById('rangeAllBtn').classList.add('selected');
     document.getElementById('rangeCustomBtn').classList.remove('selected');
   }
+  syncNumWordsField();
 
   if(!from||!to||!series||!level){ document.getElementById('wordCount').style.display='none'; return; }
 
@@ -672,14 +695,16 @@ async function startSession(){
     passMark = (!isNaN(pc)&&pc>0) ? String(pc) : 'auto';
   }
 
-  // Number of words
-  const numSel = document.getElementById('numWords').value;
+  // Number of words — ignored when student picked a word range (range already limits words)
   let numWords = 'all';
-  if(numSel === 'custom'){
-    const custom = parseInt(document.getElementById('numWordsCustom').value);
-    numWords = isNaN(custom)||custom<1 ? 'all' : custom;
-  } else if(numSel !== 'all'){
-    numWords = parseInt(numSel);
+  if(rangeMode !== 'range'){
+    const numSel = document.getElementById('numWords').value;
+    if(numSel === 'custom'){
+      const custom = parseInt(document.getElementById('numWordsCustom').value);
+      numWords = isNaN(custom)||custom<1 ? 'all' : custom;
+    } else if(numSel !== 'all'){
+      numWords = parseInt(numSel);
+    }
   }
 
   if(!series||!level||!from||!to){ showMsg('Please complete all selections.','error'); return; }
