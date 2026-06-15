@@ -604,6 +604,7 @@ function updateTimerDisplay(){const m=Math.floor(gameSeconds/60),s=gameSeconds%6
 // State for the current target
 let seqWords=[];        // collocation split into words, in CORRECT order: ['summer','holiday']
 let caughtWords=[];     // correct words the student has caught so far (any order)
+let dropRound=0;        // how many drop rounds have happened for this target (max 2, then penalty)
 
 function getTargetMeaning(w){
   // Meaning in the student's chosen language; fallback to English; fallback to the word itself
@@ -648,6 +649,7 @@ function nextTarget(){
   // Split the collocation into its words (correct order kept for the sort step)
   seqWords = target.collocations.trim().split(/\s+/);
   caughtWords = [];
+  dropRound = 0;
   renderCaughtProgress();
 
   // Clear any leftover falling words / sort panel
@@ -673,13 +675,15 @@ function nextTarget(){
 }
 
 function startDropping(target){
-  // Build falling options: every correct word + a misspelled distractor for each
+  dropRound++;   // this is round 1, 2, ...
+  // Build falling options: every NOT-YET-CAUGHT correct word + a misspelled distractor for each
+  const remaining = seqWords.filter(w=>!caughtWords.includes(w));
   const options=[];
-  seqWords.forEach(word=>{
+  remaining.forEach(word=>{
     options.push({text:word, correct:true});
   });
-  const usedTexts=new Set(seqWords.map(w=>w.toLowerCase()));
-  seqWords.forEach(word=>{
+  const usedTexts=new Set(remaining.map(w=>w.toLowerCase()));
+  remaining.forEach(word=>{
     const bad=misspell(word);
     if(!usedTexts.has(bad.toLowerCase())){
       options.push({text:bad, correct:false});
@@ -717,28 +721,32 @@ function dropWords(options){
 function animateFall(){
   const area=document.getElementById('gameArea');
   const areaH=area.clientHeight;
-  let needRespawn=false;
   fallingWords.forEach(fw=>{
     if(fw.caught)return;
     fw.y+=fw.speed*2.0;
     fw.el.style.top=fw.y+'px';
     if(fw.y>areaH){
       fw.caught=true;fw.el.remove();
-      // If a still-needed correct word fell off and isn't caught yet, we need another round
-      if(fw.opt.correct && !caughtWords.includes(fw.opt.text)) needRespawn=true;
     }
   });
   if(gameActive && fallingWords.some(fw=>!fw.caught)){
     fallRAF=requestAnimationFrame(animateFall);
-  } else if(gameActive && needRespawn && caughtWords.length<seqWords.length){
-    // Some needed words fell off-screen — drop the remaining ones again (no penalty)
-    const remaining=seqWords.filter(w=>!caughtWords.includes(w));
-    const options=[];
-    remaining.forEach(word=>options.push({text:word,correct:true}));
-    const usedTexts=new Set(remaining.map(w=>w.toLowerCase()));
-    remaining.forEach(word=>{const bad=misspell(word);if(!usedTexts.has(bad.toLowerCase())){options.push({text:bad,correct:false});usedTexts.add(bad.toLowerCase());}});
-    shuffle(options);
-    setTimeout(()=>{ if(gameActive) dropWords(options); },300);
+    return;
+  }
+  // All words for this round have fallen / been caught
+  if(!gameActive) return;
+  if(caughtWords.length>=seqWords.length) return; // all caught → handled in catchWord
+
+  // Not all correct words caught yet
+  if(dropRound<2){
+    // Give a second round — drop the remaining words again, no penalty
+    setTimeout(()=>{ if(gameActive) startDropping(gameWords[currentTargetIdx]); },300);
+  } else {
+    // After 2 rounds and still missing words → lose a life, then restart the SAME target
+    const target=gameWords[currentTargetIdx];
+    if(!failedPairs.find(f=>f.word_id===target.word_id))failedPairs.push(target);
+    loseLife();
+    if(gameActive){ setTimeout(()=>{ if(gameActive) nextTarget(); },400); }
   }
 }
 
