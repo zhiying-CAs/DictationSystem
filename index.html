@@ -262,7 +262,25 @@ async function resumeSession(){
   showLoading('Finding your session...');
   try{
     const d=await api({action:'getRecord',record_id:code});
-    if(d.success){sessionStorage.setItem('ds_resume',JSON.stringify(d.data));hideLoading();window.location.href='setup.html';}
+    if(d.success){
+      sessionStorage.setItem('ds_resume',JSON.stringify(d.data));
+      // CRITICAL: also restore ds_student, or setup.html will bounce back to this screen
+      // (it requires a logged-in student before it will read ds_resume)
+      const rec=d.data;
+      const studentName = rec['Student Name']||rec['Name']||rec.student_name||rec.name||'';
+      const studentId    = rec['Student ID']||rec['Student_ID']||rec.student_id||'';
+      const studentClass = rec['Class']||rec.class||'';
+      const studentTeacher = rec['Teacher']||rec['EL Teacher']||rec.teacher||'';
+      sessionStorage.setItem('ds_student', JSON.stringify({
+        name: studentName,
+        student_id: studentId,
+        class: studentClass,
+        teacher: studentTeacher,
+        school_type: studentTeacher ? 'ZPS' : 'guest',
+        language: 'zh'
+      }));
+      hideLoading();window.location.href='setup.html';
+    }
     else{hideLoading();showMsg('msg-resume','Session code not found. Check and try again.','error');}
   }catch(e){hideLoading();showMsg('msg-resume','Connection error. Please try again.','error');}
 }

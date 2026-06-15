@@ -454,6 +454,16 @@ function webSpeak(text,btn){
   lives=maxLives;
   gameSeconds=(parseInt(config.task3_timeout_minutes)||10)*60;
 
+  // If Task 4/5 already ran first (e.g. task order is 1-4-5-3), reuse THEIR word partner selection
+  // so all tasks stay consistent — don't re-randomize.
+  let existingSessionWords=[];
+  const existingStored=sessionStorage.getItem('ds_session_words');
+  if(existingStored){try{existingSessionWords=JSON.parse(existingStored);}catch(e){existingSessionWords=[];}}
+
+  if(existingSessionWords.length){
+    gameWords = existingSessionWords;
+  } else {
+
   // === Task 3 MUST use the same words as Task 1 ===
   // Read Task 1's word list (the master list for this session)
   let task1Words=[];
@@ -493,6 +503,8 @@ function webSpeak(text,btn){
   // Word partners出场顺序 random, but always from Task 1's words
   shuffle(uniqueWordPartners);
   gameWords = uniqueWordPartners.slice(0, Math.min(numPartners, uniqueWordPartners.length));
+
+  } // end else (no existing ds_session_words)
 
   if(!gameWords.length){
     alert('No Word Partners found for these words. Please check the Master sheet has collocations for this unit.');

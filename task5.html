@@ -45,6 +45,12 @@ body{display:flex;flex-direction:column;}
 .passage-read-btn{margin-top:10px;display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:12px;background:linear-gradient(135deg,var(--g2),var(--g4));border:none;color:white;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;cursor:pointer;}
 .passage-read-btn:active{transform:scale(0.95);}
 .passage-read-btn.playing{animation:speakPulse 0.8s ease infinite;}
+.passage-controls{margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.highlight-toggle-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:12px;background:var(--white);border:1.5px solid var(--amber);color:var(--amber);font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;cursor:pointer;transition:all 0.15s;}
+.highlight-toggle-btn.active{background:var(--amber);color:white;}
+.highlight-toggle-btn:active{transform:scale(0.95);}
+.word-span{transition:background 0.15s,color 0.15s;border-radius:4px;padding:0 1px;}
+.word-span.reading{background:var(--amber);color:white;}
 @keyframes speakPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.06);}}
 
 /* Question card */
@@ -195,7 +201,10 @@ body{display:flex;flex-direction:column;}
     <div class="passage-card" id="passageCard">
       <div class="passage-label">📖 Read the passage</div>
       <div class="passage-text" id="passageText">—</div>
-      <button class="passage-read-btn" id="passageReadBtn" onclick="readPassage()">🔊 Read aloud</button>
+      <div class="passage-controls">
+        <button class="passage-read-btn" id="passageReadBtn" onclick="readPassage()">🔊 Read aloud</button>
+        <button class="highlight-toggle-btn active" id="highlightToggleBtn" style="display:none" onclick="toggleHighlight()">🔆 Highlighting on</button>
+      </div>
     </div>
     <div class="q-card">
       <div class="q-num-label" id="qNumLabel">Question 1</div>
@@ -216,6 +225,9 @@ const LANG_KEY={zh:'translation_zh',ms:'translation_ms',id:'translation_id',vi:'
 
 let config={},setup={},student={},recordId='';
 let questions=[];
+let highlightOn = true;       // default ON (student can turn off)
+let highlightTimer = null;
+let highlightWords = [];      // array of word span elements for current passage
 let currentQ=0,score=0;
 let answers=[]; // {word, picked, correct, isCorrect, q}
 let selectedOption=null,answered=false;
@@ -252,26 +264,46 @@ function sndWin(){[523,587,659,698,784,880,988,1047].forEach((f,i)=>tone(f,0.14,
   const stored=sessionStorage.getItem('ds_session_words');
   if(stored){try{sessionWords=JSON.parse(stored);}catch(e){sessionWords=[];}}
 
-  // Fallback: if Task 3 was skipped, load words fresh (one collocation per word)
+  // Fallback: if Task 3/4 haven't run yet (e.g. task order is 1-5-...), select word partners
+  // the SAME way Task 3 does — anchored to Task 1's words — and save for Task 3/4 to inherit.
   if(!sessionWords.length){
-    let allWords=[];
-    const cached=sessionStorage.getItem('ds_words_all');
-    if(cached){try{allWords=JSON.parse(cached);}catch(e){allWords=[];}}
-    if(!allWords.length){
+    let task1Words=[];
+    const t1=sessionStorage.getItem('ds_words');
+    if(t1){try{task1Words=JSON.parse(t1);}catch(e){task1Words=[];}}
+    const task1Ids=task1Words.map(w=>w.word_id).filter(Boolean);
+
+    let allRows=[];
+    if(task1Ids.length){
       try{
         const res=await api({action:'getWords',series:setup.series,level:setup.level,
-          unit_from:setup.unit_from,unit_to:setup.unit_to,half:setup.half||'all',mode:'all'});
-        if(res.success)allWords=res.data;
-        sessionStorage.setItem('ds_words_all',JSON.stringify(allWords));
+          unit_from:setup.unit_from,unit_to:setup.unit_to,half:'all',mode:'all'});
+        if(res.success)allRows=res.data;
       }catch(e){}
     }
-    // one row per word
+
+    const task1WordSet=new Set(task1Words.map(w=>String(w.word).toLowerCase().trim()));
+    const eligibleRows=allRows.filter(r=>
+      r.collocations && r.collocations.trim() &&
+      task1WordSet.has(String(r.word).toLowerCase().trim())
+    );
+
     const byWord={};
-    allWords.forEach(w=>{if(w.short_passage&&w.short_passage.trim()){const k=w.word.toLowerCase().trim();if(!byWord[k])byWord[k]=[];byWord[k].push(w);}});
-    sessionWords=Object.values(byWord).map(rows=>rows[Math.floor(Math.random()*rows.length)]);
-    shuffle(sessionWords);
+    eligibleRows.forEach(w=>{
+      const key=String(w.word).toLowerCase().trim();
+      if(!byWord[key])byWord[key]=[];
+      byWord[key].push(w);
+    });
+    const uniqueWordPartners=Object.values(byWord).map(rows=>rows[Math.floor(Math.random()*rows.length)]);
+    shuffle(uniqueWordPartners);
     const numC=parseInt(setup.task3_collocations)||12;
-    sessionWords=sessionWords.slice(0,numC);
+    sessionWords=uniqueWordPartners.slice(0,Math.min(numC,uniqueWordPartners.length));
+
+    if(sessionWords.length){
+      // Save so Task 3 / Task 4 (whichever runs later) use the SAME word partners
+      sessionStorage.setItem('ds_session_word_ids', sessionWords.map(w=>w.word_id).join(','));
+      sessionStorage.setItem('ds_session_words', JSON.stringify(sessionWords));
+      api({action:'updateRecord',record_id:recordId,words_tested:sessionWords.map(w=>w.word_id).join(','),status:'word_detective_started'});
+    }
   }
 
   // Build questions from rows that have passage + qns + synonym options
@@ -304,7 +336,12 @@ function showQuestion(idx){
   document.getElementById('progFill').style.width=((idx)/questions.length*100)+'%';
   document.getElementById('qNumLabel').textContent='Question '+(idx+1);
   document.getElementById('passageText').textContent=q.passage;
+  renderPassageWords(q.passage);
   document.getElementById('qText').textContent=q.question;
+
+  // Highlight toggle is hidden until "Read aloud" is tapped (only relevant during playback)
+  document.getElementById('highlightToggleBtn').style.display='none';
+  stopHighlight();
 
   const cont=document.getElementById('options');cont.innerHTML='';
   const letters=['A','B','C','D'];
@@ -321,6 +358,56 @@ function showQuestion(idx){
   document.getElementById('qArea').scrollTop=0;
 }
 
+// ===== Read-aloud word highlighting =====
+function renderPassageWords(text){
+  const el = document.getElementById('passageText');
+  el.innerHTML = '';
+  highlightWords = [];
+  // Split on whitespace but keep it, so spacing/punctuation stays natural
+  const tokens = text.split(/(\s+)/);
+  tokens.forEach(tok=>{
+    if(tok.trim()===''){
+      el.appendChild(document.createTextNode(tok));
+    } else {
+      const span = document.createElement('span');
+      span.className = 'word-span';
+      span.textContent = tok;
+      el.appendChild(span);
+      highlightWords.push(span);
+    }
+  });
+}
+
+function toggleHighlight(){
+  highlightOn = !highlightOn;
+  const btn = document.getElementById('highlightToggleBtn');
+  btn.classList.toggle('active', highlightOn);
+  btn.textContent = highlightOn ? '🔆 Highlighting on' : '🔆 Highlighting off';
+  if(!highlightOn) stopHighlight();
+}
+
+function stopHighlight(){
+  if(highlightTimer){ clearInterval(highlightTimer); highlightTimer=null; }
+  highlightWords.forEach(w=>w.classList.remove('reading'));
+}
+
+// Estimate per-word duration from total audio duration (or a reading-pace fallback)
+function startHighlight(totalSeconds){
+  stopHighlight();
+  if(!highlightOn || !highlightWords.length) return;
+  const perWord = (totalSeconds && totalSeconds>0)
+    ? (totalSeconds*1000) / highlightWords.length
+    : 380; // fallback: ~160 words/min reading pace
+  let i = 0;
+  highlightWords[0].classList.add('reading');
+  highlightTimer = setInterval(()=>{
+    highlightWords[i].classList.remove('reading');
+    i++;
+    if(i>=highlightWords.length){ stopHighlight(); return; }
+    highlightWords[i].classList.add('reading');
+  }, perWord);
+}
+
 // Read passage aloud (cached TTS)
 const passageAudioCache={};
 async function readPassage(){
@@ -328,6 +415,8 @@ async function readPassage(){
   const text=q.passage;
   const btn=document.getElementById('passageReadBtn');
   btn.classList.add('playing');
+  // Reveal the highlight toggle now that the student is listening
+  document.getElementById('highlightToggleBtn').style.display='inline-flex';
   try{
     let url=passageAudioCache[text];
     if(!url){
@@ -348,7 +437,12 @@ async function readPassage(){
         }
       }
     }
-    if(url){const a=new Audio(url);a.onended=()=>btn.classList.remove('playing');await a.play();}
+    if(url){
+      const a=new Audio(url);
+      a.onloadedmetadata=()=>startHighlight(a.duration);
+      a.onended=()=>{btn.classList.remove('playing');stopHighlight();};
+      await a.play();
+    }
     else{webSpeakPassage(text,btn);}
   }catch(e){webSpeakPassage(text,btn);}
 }
@@ -356,7 +450,12 @@ function webSpeakPassage(text,btn){
   if(!window.speechSynthesis){btn.classList.remove('playing');return;}
   speechSynthesis.cancel();
   const u=new SpeechSynthesisUtterance(text);u.lang='en-GB';u.rate=0.8;
-  u.onend=()=>btn.classList.remove('playing');u.onerror=()=>btn.classList.remove('playing');
+  // Rough estimate: ~150 words/min at rate 0.8
+  const wordCount = highlightWords.length || text.split(/\s+/).length;
+  const estSeconds = wordCount / (150*0.8/60);
+  startHighlight(estSeconds);
+  u.onend=()=>{btn.classList.remove('playing');stopHighlight();};
+  u.onerror=()=>{btn.classList.remove('playing');stopHighlight();};
   speechSynthesis.speak(u);
 }
 function pcmToWav(pcm,sr,ch,bps){const dl=pcm.length;const ba=ch*bps/8;const br=sr*ba;const buf=new ArrayBuffer(44+dl);const v=new DataView(buf);const s=(o,str)=>{for(let i=0;i<str.length;i++)v.setUint8(o+i,str.charCodeAt(i));};s(0,'RIFF');v.setUint32(4,36+dl,true);s(8,'WAVE');s(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,ch,true);v.setUint32(24,sr,true);v.setUint32(28,br,true);v.setUint16(32,ba,true);v.setUint16(34,bps,true);s(36,'data');v.setUint32(40,dl,true);new Uint8Array(buf).set(pcm,44);return buf;}

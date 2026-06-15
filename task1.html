@@ -96,6 +96,24 @@ body{display:flex;flex-direction:column;}
 /* OVERLAY */
 .overlay{position:fixed;inset:0;background:rgba(234,247,216,0.95);z-index:100;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;}
 .overlay.show{display:flex;}
+
+/* === Display mode modal === */
+.mode-modal{position:fixed;inset:0;background:rgba(20,40,20,0.5);z-index:300;display:none;align-items:center;justify-content:center;padding:20px;}
+.mode-modal.show{display:flex;}
+.mode-box{background:white;border-radius:20px;padding:24px;max-width:380px;width:100%;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,0.2);}
+.mode-box h3{font-size:18px;font-weight:900;color:var(--g1);margin-bottom:6px;}
+.mode-box p{font-size:13px;color:var(--muted);font-weight:600;margin-bottom:18px;}
+.mode-choice-row{display:flex;gap:10px;align-items:stretch;}
+.mode-el-btn{flex:1;padding:16px 10px;border:2px solid var(--border);border-radius:14px;background:var(--g7);font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;color:var(--g1);cursor:pointer;transition:all 0.18s;}
+.mode-el-btn.selected{border-color:var(--g3);background:white;box-shadow:0 0 0 3px rgba(74,154,58,0.15);}
+.mode-globe-btn{width:64px;flex-shrink:0;border:2px solid var(--border);border-radius:14px;background:var(--g7);font-size:26px;cursor:pointer;transition:all 0.18s;display:flex;align-items:center;justify-content:center;}
+.mode-globe-btn.selected{border-color:var(--g3);background:white;box-shadow:0 0 0 3px rgba(74,154,58,0.15);}
+.mode-lang-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:12px;}
+.mode-lang-btn{padding:10px 4px;border:1.5px solid var(--border);border-radius:10px;background:var(--g7);font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;text-align:center;transition:all 0.18s;}
+.mode-lang-btn.selected{border-color:var(--g3);background:white;color:var(--g1);}
+.mode-confirm-btn{width:100%;margin-top:18px;padding:14px;border:none;border-radius:13px;background:linear-gradient(135deg,var(--g2),var(--g3));color:white;font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;cursor:pointer;transition:all 0.15s;}
+.mode-confirm-btn:active{transform:scale(0.98);}
+.mode-confirm-btn:disabled{opacity:0.4;}
 .spinner{width:48px;height:48px;border-radius:50%;border:4px solid var(--border);border-top-color:var(--g2);animation:spin 0.8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .overlay-text{font-size:16px;font-weight:800;color:var(--g1);text-align:center;}
@@ -185,6 +203,20 @@ body{display:flex;flex-direction:column;}
 <div class="overlay" id="overlay">
   <div class="spinner"></div>
   <div class="overlay-text" id="overlayText">Loading Spell Storm...</div>
+</div>
+
+<!-- Display mode modal -->
+<div class="mode-modal" id="modeModal">
+  <div class="mode-box">
+    <h3>How would you like to see word meanings? 📖</h3>
+    <p>Choose English definitions, or a translation in your language.</p>
+    <div class="mode-choice-row">
+      <button class="mode-el-btn" id="modeElBtn" onclick="chooseModeEl()">📖 EL Definition</button>
+      <button class="mode-globe-btn" id="modeGlobeBtn" onclick="toggleModeLangGrid()">🌐</button>
+    </div>
+    <div class="mode-lang-grid" id="modeLangGrid" style="display:none"></div>
+    <button class="mode-confirm-btn" id="modeConfirmBtn" disabled onclick="confirmDisplayMode()">Let's start! 🚀</button>
+  </div>
 </div>
 
 <!-- Exit PIN modal -->
@@ -362,6 +394,8 @@ let geminiKey    = '';
 let repeatCount  = 3;
 let currentRepeat = 0;
 let autoTimer    = null;
+let displayMode  = null; // 'el' or lang code (zh, ms, id, vi, th, my, km, bn) — chosen once, applies to every word
+let modeLangSelection = null;
 
 // ---- Init ----
 (async function(){
@@ -430,12 +464,77 @@ let autoTimer    = null;
   }
 
   buildLangGrid();
-  showWord(0);
+  buildModeLangGrid();
   hideLoading();
+  // Show display-mode picker (teacher's default pre-selected, student can change)
+  await showDisplayModeModal();
+
+  showWord(0);
 
   // Auto-play first word after short delay
   setTimeout(()=> playCurrentWord(), 800);
 })();
+
+// ---- Display mode modal ----
+function buildModeLangGrid(){
+  const grid = document.getElementById('modeLangGrid');
+  grid.innerHTML = '';
+  LANGS.forEach(l=>{
+    const btn = document.createElement('button');
+    btn.className = 'mode-lang-btn';
+    btn.textContent = l.label;
+    btn.dataset.code = l.code;
+    btn.onclick = ()=> selectModeLang(l.code, btn);
+    grid.appendChild(btn);
+  });
+}
+function chooseModeEl(){
+  modeLangSelection = null;
+  document.getElementById('modeElBtn').classList.add('selected');
+  document.getElementById('modeGlobeBtn').classList.remove('selected');
+  document.getElementById('modeLangGrid').style.display = 'none';
+  document.querySelectorAll('.mode-lang-btn').forEach(b=>b.classList.remove('selected'));
+  document.getElementById('modeConfirmBtn').disabled = false;
+}
+function toggleModeLangGrid(){
+  const grid = document.getElementById('modeLangGrid');
+  const open = grid.style.display !== 'none';
+  if(open){
+    grid.style.display = 'none';
+    document.getElementById('modeGlobeBtn').classList.remove('selected');
+  } else {
+    grid.style.display = 'grid';
+    document.getElementById('modeGlobeBtn').classList.add('selected');
+    document.getElementById('modeElBtn').classList.remove('selected');
+  }
+}
+function selectModeLang(code, el){
+  modeLangSelection = code;
+  document.querySelectorAll('.mode-lang-btn').forEach(b=>b.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('modeElBtn').classList.remove('selected');
+  document.getElementById('modeGlobeBtn').classList.add('selected');
+  document.getElementById('modeConfirmBtn').disabled = false;
+}
+function showDisplayModeModal(){
+  return new Promise(resolve=>{
+    // Pre-select teacher's default
+    const teacherDefault = (setup.show_definition || config.task1_show_definition_default || 'yes');
+    if(teacherDefault === 'yes'){
+      chooseModeEl();
+    } else {
+      // teacher default isn't EL — leave unselected, student must choose
+      document.getElementById('modeConfirmBtn').disabled = true;
+    }
+    document.getElementById('modeModal').classList.add('show');
+    window._resolveDisplayMode = resolve;
+  });
+}
+function confirmDisplayMode(){
+  displayMode = (modeLangSelection !== null) ? modeLangSelection : 'el';
+  document.getElementById('modeModal').classList.remove('show');
+  if(window._resolveDisplayMode) window._resolveDisplayMode();
+}
 
 // ---- API ----
 async function api(p){ const q=new URLSearchParams(p).toString(); const r=await fetch(API+'?'+q); return r.json(); }
@@ -461,28 +560,35 @@ function showWord(idx){
   document.getElementById('progressNum').textContent = (idx+1) + '/' + words.length;
   document.getElementById('wordNum').textContent = 'Word ' + (idx+1);
 
-  // Definition
-  const showDef = (setup.show_definition || config.task1_show_definition_default || 'yes') === 'yes';
+  // Definition / Translation — driven by the student's chosen displayMode (persists across words)
   const defArea = document.getElementById('defArea');
-  if(showDef && w.definition_en){
-    defArea.style.display = 'block';
-    document.getElementById('posDisplay').textContent = w.pos || '';
-    document.getElementById('posDisplay').style.display = w.pos ? 'inline-block' : 'none';
-    document.getElementById('defText').textContent = w.definition_en;
+  const transArea = document.getElementById('transArea');
+  if(displayMode === 'el'){
+    if(w.definition_en){
+      defArea.style.display = 'block';
+      document.getElementById('posDisplay').textContent = w.pos || '';
+      document.getElementById('posDisplay').style.display = w.pos ? 'inline-block' : 'none';
+      document.getElementById('defText').textContent = w.definition_en;
+    } else {
+      defArea.style.display = 'none';
+    }
+    transArea.style.display = 'none';
+  } else if(displayMode){
+    // A translation language was chosen — show it automatically, every word
+    defArea.style.display = 'none';
+    transArea.style.display = 'block';
+    document.getElementById('transBtnToggle').style.display = 'none'; // no per-word toggle needed
+    document.getElementById('transPanel').style.display = 'block';
+    document.getElementById('langGrid').style.display = 'none'; // language already fixed for the session
+    const key = LANG_KEY[displayMode];
+    const val = w[key] || '';
+    const transText = document.getElementById('transText');
+    transText.textContent = val || w.definition_en || '';
+    transText.style.display = 'block';
   } else {
     defArea.style.display = 'none';
+    transArea.style.display = 'none';
   }
-
-  // Translation area
-  document.getElementById('transArea').style.display = 'block';
-  // Reset translation
-  transOpen = false;
-  selectedLang = null;
-  document.getElementById('transPanel').style.display = 'none';
-  document.getElementById('transBtnToggle').classList.remove('active');
-  document.getElementById('transBtnToggle').textContent = '🌐 Show translation';
-  document.getElementById('transText').style.display = 'none';
-  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('selected'));
 
   // Nav buttons
   document.getElementById('btnPrev').disabled = (idx === 0);
