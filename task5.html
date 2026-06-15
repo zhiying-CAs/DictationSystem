@@ -395,22 +395,36 @@ function stopHighlight(){
   highlightWords.forEach(w=>w.classList.remove('reading'));
 }
 
-// Highlight driven by the audio's REAL playback position (stays in sync even if speed varies).
-// For webSpeech fallback (no currentTime), use a timer estimate.
+// Highlight driven by the audio's REAL playback position when available.
+// WAV blobs from raw PCM often report duration as Infinity/NaN — in that case
+// we fall back to a steady timer estimate so highlighting still works.
 function startHighlightFromAudio(audio){
   stopHighlight();
   if(!highlightOn || !highlightWords.length) return;
   highlightAudio = audio;
   const n = highlightWords.length;
+
+  // Estimate total duration for fallback (≈165 wpm reading pace)
+  const estSeconds = n / (165/60);
+  const startedAt = performance.now();
+
   function tick(){
     if(!highlightAudio || highlightAudio.paused || highlightAudio.ended){ return; }
     const dur = highlightAudio.duration;
-    if(dur && dur>0){
-      // Which word should be lit based on how far through the audio we are
-      const frac = Math.min(0.999, highlightAudio.currentTime / dur);
-      const idx = Math.floor(frac * n);
-      highlightWords.forEach((w,k)=>w.classList.toggle('reading', k===idx));
+    let frac;
+    if(isFinite(dur) && dur>0){
+      // Real audio position (best accuracy)
+      frac = highlightAudio.currentTime / dur;
+    } else if(highlightAudio.currentTime>0){
+      // Duration unknown but we have a moving currentTime → estimate against estSeconds
+      frac = highlightAudio.currentTime / estSeconds;
+    } else {
+      // Duration AND currentTime unusable → use wall-clock elapsed vs estimate
+      frac = (performance.now()-startedAt)/1000 / estSeconds;
     }
+    frac = Math.max(0, Math.min(0.999, frac));
+    const idx = Math.floor(frac * n);
+    highlightWords.forEach((w,k)=>w.classList.toggle('reading', k===idx));
     highlightRAF = requestAnimationFrame(tick);
   }
   highlightRAF = requestAnimationFrame(tick);
@@ -464,10 +478,16 @@ async function readPassage(){
     }
     if(url){
       const a=new Audio(url);
-      // Drive highlight off the real audio position so it always matches the voice
-      a.onplay=()=>startHighlightFromAudio(a);
+      // Drive highlight off the real audio position so it always matches the voice.
+      // Use both onplay and onplaying for cross-browser reliability (iOS Safari quirk).
+      let started=false;
+      const begin=()=>{ if(!started){ started=true; startHighlightFromAudio(a); } };
+      a.onplay=begin;
+      a.onplaying=begin;
       a.onended=()=>{btn.classList.remove('playing');stopHighlight();};
       await a.play();
+      // Safety net: if neither event fired shortly after play, start anyway
+      setTimeout(()=>{ if(!started && !a.paused) begin(); }, 250);
     }
     else{webSpeakPassage(text,btn);}
   }catch(e){webSpeakPassage(text,btn);}
