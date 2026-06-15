@@ -85,6 +85,9 @@ body{display:flex;flex-direction:column;}
 .target-label{font-size:11px;font-weight:800;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
 .target-word{font-size:40px;font-weight:900;color:var(--g1);margin-top:2px;line-height:1.1;}
 .target-hint{font-size:12px;font-weight:700;color:var(--g3);margin-top:4px;}
+.target-progress{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:8px;min-height:24px;}
+.seq-slot{padding:4px 10px;border-radius:8px;border:1.5px dashed var(--g4);background:rgba(255,255,255,0.5);font-size:13px;font-weight:800;color:var(--muted);min-width:30px;text-align:center;}
+.seq-slot.filled{border-style:solid;border-color:var(--g3);background:white;color:var(--g1);}
 .game-area{flex:1;position:relative;background:linear-gradient(180deg,#F8FCF4,#FFFFFF);border:2px solid var(--border);border-radius:14px;overflow:hidden;min-height:0;box-shadow:inset 0 2px 16px rgba(0,0,0,0.05);}
 .falling-word{position:absolute;padding:10px 18px;border-radius:16px;font-size:16px;font-weight:800;cursor:pointer;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,0.18);transition:transform 0.1s;border:2px solid var(--g4);background:var(--white);color:var(--g1);}
 .falling-word:active{transform:scale(0.92);}
@@ -308,9 +311,10 @@ body{display:flex;flex-direction:column;}
       <div class="game-timer" id="gameTimer">10:00</div>
     </div>
     <div class="target-display">
-      <div class="target-label">Catch the word that pairs with</div>
+      <div class="target-label" id="targetLabel">Catch the words in order to build</div>
       <div class="target-word" id="targetWord">—</div>
-      <div class="target-hint" id="targetHint">Tap the correctly spelled match! ✨</div>
+      <div class="target-hint" id="targetHint">Tap them in the correct order! ✨</div>
+      <div class="target-progress" id="targetProgress"></div>
     </div>
     <div class="game-area" id="gameArea"></div>
   </div>
@@ -356,6 +360,9 @@ const GEMINI_API_BASE='https://generativelanguage.googleapis.com/v1beta/models/g
 
 let config={},setup={},student={},recordId='';
 let allWords=[],gameWords=[];
+// Language the student chose in Spell Storm (Task 1): 'el' or a lang code. Flashcards follow this.
+let displayMode = sessionStorage.getItem('ds_display_mode') || 'el';
+const COLLOC_KEY = {zh:'collocation_zh',ms:'collocation_ms',id:'collocation_id',vi:'collocation_vi',th:'collocation_th',my:'collocation_my',km:'collocation_km',bn:'collocation_bn'};
 let numPartners=12;
 let maxLives=5,lives=5;
 let currentCardIdx=0;
@@ -529,7 +536,14 @@ function showCard(idx){
   document.getElementById('flashcard').classList.remove('flipped');
   document.getElementById('fcPartner').textContent=w.collocations;
   document.getElementById('fcTarget').textContent='pairs with: '+w.word;
-  document.getElementById('fcMeaning').textContent=w.collocation_meaning||'—';
+  // Show the meaning in the language the student chose in Spell Storm.
+  // If that language has no data (blank in Master), fall back to English meaning — no prompt.
+  let meaning='';
+  if(displayMode && displayMode!=='el' && COLLOC_KEY[displayMode]){
+    meaning = (w[COLLOC_KEY[displayMode]]||'').trim();
+  }
+  if(!meaning) meaning = w.collocation_meaning||'—';
+  document.getElementById('fcMeaning').textContent=meaning;
   document.getElementById('fcProgressFill').style.width=((idx+1)/gameWords.length*100)+'%';
   document.getElementById('fcPrev').disabled=(idx===0);
   document.getElementById('fcNext').textContent=(idx===gameWords.length-1)?'Start game 🎮':'Next ⏭';
@@ -539,54 +553,6 @@ function prevCard(){if(currentCardIdx>0)showCard(currentCardIdx-1);}
 function nextCard(){if(currentCardIdx<gameWords.length-1)showCard(currentCardIdx+1);else startGame();}
 
 // ============ GAME ============
-function getDropWord(collocation,target){
-  // Return the PARTNER word (not the target). e.g. "green vegetables" + target "green" -> "vegetables"
-  const tWords=target.toLowerCase().split(/\s+/);
-  const cWords=collocation.split(/\s+/);
-  const partnerWords=cWords.filter(w=>!tWords.includes(w.toLowerCase()));
-  return partnerWords.length?partnerWords.join(' '):collocation;
-}
-
-function startGame(){
-  document.getElementById('flashcardPhase').style.display='none';
-  document.getElementById('gamePhase').classList.add('show');
-  buildLives();
-  currentTargetIdx=0;score=0;
-  startGameTimer();startTenseMusic();
-  gameActive=true;
-  nextTarget();
-}
-function buildLives(){const el=document.getElementById('lives');el.innerHTML='';for(let i=0;i<maxLives;i++){const h=document.createElement('span');h.className='life'+(i>=lives?' lost':'');h.textContent='❤️';el.appendChild(h);}}
-function startGameTimer(){updateTimerDisplay();gameTimer=setInterval(()=>{gameSeconds--;updateTimerDisplay();if(gameSeconds<=0){clearInterval(gameTimer);endGame(false,'Time up!');}},1000);}
-function updateTimerDisplay(){const m=Math.floor(gameSeconds/60),s=gameSeconds%60;document.getElementById('gameTimer').textContent=`${m}:${String(s).padStart(2,'0')}`;}
-
-function nextTarget(){
-  if(currentTargetIdx>=gameWords.length){endGame(true);return;}
-  document.getElementById('gameProgress').textContent=`${currentTargetIdx}/${gameWords.length}`;
-  const target=gameWords[currentTargetIdx];
-  document.getElementById('targetWord').textContent=target.word;
-
-  const correctPartner=getDropWord(target.collocations.trim(),target.word);
-  const options=[{text:correctPartner,correct:true}];
-  options.push({text:misspell(correctPartner),correct:false});
-  // Other partners as distractors — exclude any with the same target word
-  const others=gameWords.filter((w,i)=>i!==currentTargetIdx
-    && w.collocations
-    && w.word.toLowerCase().trim()!==target.word.toLowerCase().trim());
-  shuffle(others);
-  const usedTexts=new Set([correctPartner.toLowerCase()]);
-  for(const w of others){
-    if(options.length>=4) break;
-    const p=getDropWord(w.collocations.trim(),w.word);
-    if(!usedTexts.has(p.toLowerCase())){
-      options.push({text:p,correct:false});
-      usedTexts.add(p.toLowerCase());
-    }
-  }
-  shuffle(options);
-  dropWords(options);
-}
-
 function misspell(word){
   const chars=word.split('');
   const letters=chars.filter(c=>/[a-z]/i.test(c));
@@ -603,6 +569,78 @@ function misspell(word){
   return result===word?word+'e':result;
 }
 
+function startGame(){
+  document.getElementById('flashcardPhase').style.display='none';
+  document.getElementById('gamePhase').classList.add('show');
+  buildLives();
+  currentTargetIdx=0;score=0;
+  startGameTimer();startTenseMusic();
+  gameActive=true;
+  nextTarget();
+}
+function buildLives(){const el=document.getElementById('lives');el.innerHTML='';for(let i=0;i<maxLives;i++){const h=document.createElement('span');h.className='life'+(i>=lives?' lost':'');h.textContent='❤️';el.appendChild(h);}}
+function startGameTimer(){updateTimerDisplay();gameTimer=setInterval(()=>{gameSeconds--;updateTimerDisplay();if(gameSeconds<=0){clearInterval(gameTimer);endGame(false,'Time up!');}},1000);}
+function updateTimerDisplay(){const m=Math.floor(gameSeconds/60),s=gameSeconds%60;document.getElementById('gameTimer').textContent=`${m}:${String(s).padStart(2,'0')}`;}
+
+// State for the current target's ordered sequence
+let seqWords=[];        // the collocation split into words, in order: ['summer','holiday']
+let seqIndex=0;         // how many caught correctly so far
+
+function getTargetMeaning(w){
+  // Meaning in the student's chosen language; fallback to English; fallback to the word itself
+  let m='';
+  if(displayMode && displayMode!=='el' && COLLOC_KEY[displayMode]){
+    m=(w[COLLOC_KEY[displayMode]]||'').trim();
+  }
+  if(!m) m=(w.collocation_meaning||'').trim();
+  if(!m) m=w.collocations||w.word;
+  return m;
+}
+
+function renderSeqProgress(){
+  const wrap=document.getElementById('targetProgress');
+  wrap.innerHTML='';
+  seqWords.forEach((word,i)=>{
+    const slot=document.createElement('div');
+    slot.className='seq-slot'+(i<seqIndex?' filled':'');
+    slot.textContent = i<seqIndex ? word : '___';
+    wrap.appendChild(slot);
+  });
+}
+
+function nextTarget(){
+  if(currentTargetIdx>=gameWords.length){endGame(true);return;}
+  document.getElementById('gameProgress').textContent=`${currentTargetIdx}/${gameWords.length}`;
+  const target=gameWords[currentTargetIdx];
+
+  // Top: show the MEANING (in chosen language), students build the collocation from it
+  document.getElementById('targetWord').textContent=getTargetMeaning(target);
+  document.getElementById('targetLabel').textContent='Catch the words in order to build the phrase';
+  document.getElementById('targetHint').textContent='Tap them in the correct order! ✨';
+
+  // Split the collocation into its words, in order
+  seqWords = target.collocations.trim().split(/\s+/);
+  seqIndex = 0;
+  renderSeqProgress();
+
+  // Build falling options: every correct word + a misspelled distractor for each
+  const options=[];
+  seqWords.forEach(word=>{
+    options.push({text:word, correct:true, seqPos:seqWords.indexOf(word)});
+  });
+  // Add misspelled distractors (one per word, capped so the screen isn't too crowded)
+  const usedTexts=new Set(seqWords.map(w=>w.toLowerCase()));
+  seqWords.forEach(word=>{
+    const bad=misspell(word);
+    if(!usedTexts.has(bad.toLowerCase())){
+      options.push({text:bad, correct:false});
+      usedTexts.add(bad.toLowerCase());
+    }
+  });
+  shuffle(options);
+  dropWords(options);
+}
+
 function dropWords(options){
   const area=document.getElementById('gameArea');
   area.querySelectorAll('.falling-word').forEach(el=>el.remove());
@@ -612,7 +650,7 @@ function dropWords(options){
   const lanes=options.length;
   options.forEach((opt,i)=>{
     const el=document.createElement('div');
-    el.className='falling-word'; // NO color difference now
+    el.className='falling-word';
     el.textContent=opt.text;
     el.style.top='-50px';
     area.appendChild(el);
@@ -620,7 +658,7 @@ function dropWords(options){
     const maxX=Math.max(4,areaW-elW-4);
     const x=Math.min(maxX,Math.max(4,(areaW/(lanes+1))*(i+1)-elW/2+(Math.random()*30-15)));
     el.style.left=x+'px';
-    const fw={el,opt,y:-50-(i*90),speed:0.35+Math.random()*0.2,caught:false}; // slower for low-proficiency
+    const fw={el,opt,y:-50-(i*90),speed:0.35+Math.random()*0.2,caught:false};
     el.onclick=()=>catchWord(fw);
     fallingWords.push(fw);
   });
@@ -636,7 +674,11 @@ function animateFall(){
     fw.el.style.top=fw.y+'px';
     if(fw.y>areaH){
       fw.caught=true;fw.el.remove();
-      if(fw.opt.correct){loseLife();setTimeout(()=>{currentTargetIdx++;if(gameActive)nextTarget();},300);}
+      // If a still-needed correct word falls off screen, lose a life and restart this target
+      if(fw.opt.correct && fw.opt.seqPos>=seqIndex){
+        loseLife();
+        if(gameActive){ setTimeout(()=>{ if(gameActive) nextTarget(); },300); }
+      }
     }
   });
   if(gameActive&&fallingWords.some(fw=>!fw.caught))fallRAF=requestAnimationFrame(animateFall);
@@ -644,15 +686,37 @@ function animateFall(){
 
 function catchWord(fw){
   if(fw.caught||!gameActive)return;
-  fw.caught=true;
-  if(fw.opt.correct){
-    fw.el.classList.add('caught-correct');sndCorrect();spawnConfetti();score++;
-    setTimeout(()=>{currentTargetIdx++;if(gameActive)nextTarget();},400);
-  } else {
+
+  // Wrong word (misspelled distractor) → lose a life
+  if(!fw.opt.correct){
+    fw.caught=true;
     fw.el.classList.add('caught-wrong');sndWrong();loseLife();
     const target=gameWords[currentTargetIdx];
     if(!failedPairs.find(f=>f.word_id===target.word_id))failedPairs.push(target);
     setTimeout(()=>fw.el.remove(),400);
+    return;
+  }
+
+  // Correct word but WRONG ORDER → lose a life
+  if(fw.opt.seqPos!==seqIndex){
+    fw.caught=true;
+    fw.el.classList.add('caught-wrong');sndWrong();loseLife();
+    const target=gameWords[currentTargetIdx];
+    if(!failedPairs.find(f=>f.word_id===target.word_id))failedPairs.push(target);
+    setTimeout(()=>fw.el.remove(),400);
+    return;
+  }
+
+  // Correct word in correct order → advance the sequence
+  fw.caught=true;
+  fw.el.classList.add('caught-correct');sndCorrect();
+  seqIndex++;
+  renderSeqProgress();
+
+  if(seqIndex>=seqWords.length){
+    // Whole phrase built in order → this target is done
+    spawnConfetti();score++;
+    setTimeout(()=>{currentTargetIdx++;if(gameActive)nextTarget();},500);
   }
 }
 
@@ -664,18 +728,17 @@ function spawnConfetti(){const wrap=document.getElementById('confettiWrap');cons
 function showReviveModal(){
   const target=failedPairs.length?failedPairs[failedPairs.length-1]:gameWords[currentTargetIdx];
   reviveTarget=target;
-  document.getElementById('reviveQTarget').textContent=`Which word pairs with "${target.word}"?`;
-  document.getElementById('reviveQText').textContent=target.collocation_meaning||'Choose the correct partner';
-  const correct=getDropWord(target.collocations.trim(),target.word);
+  document.getElementById('reviveQTarget').textContent=`Which phrase means this?`;
+  document.getElementById('reviveQText').textContent=getTargetMeaning(target);
+  const correct=target.collocations.trim();
   const opts=[correct];
-  const others=gameWords.filter(w=>w.word_id!==target.word_id
-    && w.collocations
-    && w.word.toLowerCase().trim()!==target.word.toLowerCase().trim());
+  // Distractors: other collocations from the session
+  const others=gameWords.filter(w=>w.word_id!==target.word_id && w.collocations);
   shuffle(others);
   const usedRevive=new Set([correct.toLowerCase()]);
   for(const w of others){
     if(opts.length>=3) break;
-    const p=getDropWord(w.collocations.trim(),w.word);
+    const p=w.collocations.trim();
     if(!usedRevive.has(p.toLowerCase())){opts.push(p);usedRevive.add(p.toLowerCase());}
   }
   opts.push(misspell(correct));

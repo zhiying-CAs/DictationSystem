@@ -228,6 +228,8 @@ let questions=[];
 let highlightOn = true;       // default ON (student can turn off)
 let highlightTimer = null;
 let highlightWords = [];      // array of word span elements for current passage
+let highlightRAF=null;
+let highlightAudio=null;
 let currentQ=0,score=0;
 let answers=[]; // {word, picked, correct, isCorrect, q}
 let selectedOption=null,answered=false;
@@ -388,16 +390,39 @@ function toggleHighlight(){
 
 function stopHighlight(){
   if(highlightTimer){ clearInterval(highlightTimer); highlightTimer=null; }
+  if(highlightRAF){ cancelAnimationFrame(highlightRAF); highlightRAF=null; }
+  highlightAudio=null;
   highlightWords.forEach(w=>w.classList.remove('reading'));
 }
 
-// Estimate per-word duration from total audio duration (or a reading-pace fallback)
-function startHighlight(totalSeconds){
+// Highlight driven by the audio's REAL playback position (stays in sync even if speed varies).
+// For webSpeech fallback (no currentTime), use a timer estimate.
+function startHighlightFromAudio(audio){
+  stopHighlight();
+  if(!highlightOn || !highlightWords.length) return;
+  highlightAudio = audio;
+  const n = highlightWords.length;
+  function tick(){
+    if(!highlightAudio || highlightAudio.paused || highlightAudio.ended){ return; }
+    const dur = highlightAudio.duration;
+    if(dur && dur>0){
+      // Which word should be lit based on how far through the audio we are
+      const frac = Math.min(0.999, highlightAudio.currentTime / dur);
+      const idx = Math.floor(frac * n);
+      highlightWords.forEach((w,k)=>w.classList.toggle('reading', k===idx));
+    }
+    highlightRAF = requestAnimationFrame(tick);
+  }
+  highlightRAF = requestAnimationFrame(tick);
+}
+
+// Timer-based fallback (for Web Speech API, which has no currentTime)
+function startHighlightTimed(totalSeconds){
   stopHighlight();
   if(!highlightOn || !highlightWords.length) return;
   const perWord = (totalSeconds && totalSeconds>0)
     ? (totalSeconds*1000) / highlightWords.length
-    : 380; // fallback: ~160 words/min reading pace
+    : 350;
   let i = 0;
   highlightWords[0].classList.add('reading');
   highlightTimer = setInterval(()=>{
@@ -439,7 +464,8 @@ async function readPassage(){
     }
     if(url){
       const a=new Audio(url);
-      a.onloadedmetadata=()=>startHighlight(a.duration);
+      // Drive highlight off the real audio position so it always matches the voice
+      a.onplay=()=>startHighlightFromAudio(a);
       a.onended=()=>{btn.classList.remove('playing');stopHighlight();};
       await a.play();
     }
@@ -449,11 +475,22 @@ async function readPassage(){
 function webSpeakPassage(text,btn){
   if(!window.speechSynthesis){btn.classList.remove('playing');return;}
   speechSynthesis.cancel();
-  const u=new SpeechSynthesisUtterance(text);u.lang='en-GB';u.rate=0.8;
-  // Rough estimate: ~150 words/min at rate 0.8
-  const wordCount = highlightWords.length || text.split(/\s+/).length;
-  const estSeconds = wordCount / (150*0.8/60);
-  startHighlight(estSeconds);
+  const u=new SpeechSynthesisUtterance(text);u.lang='en-GB';u.rate=0.9;
+  // Use word-boundary events when available for accurate sync; else timer estimate
+  if('onboundary' in u){
+    let lit=-1;
+    u.onboundary=(ev)=>{
+      if(!highlightOn) return;
+      // Map character index to word index
+      const upto = text.slice(0, ev.charIndex).split(/\s+/).filter(Boolean).length;
+      const idx = Math.min(highlightWords.length-1, upto);
+      if(idx!==lit){ highlightWords.forEach((w,k)=>w.classList.toggle('reading', k===idx)); lit=idx; }
+    };
+  } else {
+    const wordCount = highlightWords.length || text.split(/\s+/).length;
+    const estSeconds = wordCount / (150*0.9/60);
+    startHighlightTimed(estSeconds);
+  }
   u.onend=()=>{btn.classList.remove('playing');stopHighlight();};
   u.onerror=()=>{btn.classList.remove('playing');stopHighlight();};
   speechSynthesis.speak(u);

@@ -532,6 +532,8 @@ function showDisplayModeModal(){
 }
 function confirmDisplayMode(){
   displayMode = (modeLangSelection !== null) ? modeLangSelection : 'el';
+  // Save so Task 3 flashcards show the same language the student chose here
+  try{ sessionStorage.setItem('ds_display_mode', displayMode); }catch(e){}
   document.getElementById('modeModal').classList.remove('show');
   if(window._resolveDisplayMode) window._resolveDisplayMode();
 }

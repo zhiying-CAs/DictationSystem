@@ -783,20 +783,51 @@ async function startSession(){
 }
 
 // ---- Apply resume data ----
+// Set a <select>'s value by normalized match against its options
+// (handles whitespace/spacing/case differences between the Records sheet and Series_Levels sheet)
+function setSelectTrimmed(selectEl, rawValue){
+  const norm = s => String(s||'').replace(/\s+/g,' ').trim().toLowerCase();
+  const target = norm(rawValue);
+  if(!target) return false;
+  for(const opt of selectEl.options){
+    if(norm(opt.value) === target){ selectEl.value = opt.value; return true; }
+  }
+  return false;
+}
+
 function applyResume(record){
   showMsg('📌 Resuming your previous session...','success');
   // Pre-fill fields after series levels load
   setTimeout(()=>{
     const serSel = document.getElementById('selSeries');
-    serSel.value = record._series||record['Series']||record.series||'';
+    const seriesVal = record._series||record['Series']||record.series||'';
+    const seriesOk = setSelectTrimmed(serSel, seriesVal);
+    if(!seriesOk){
+      const available = Array.from(serSel.options).map(o=>'"'+o.value+'"').join(', ');
+      showMsg('⚠️ Resume found series "'+seriesVal+'" but available options are: '+available+'. Please select manually.','warn');
+      return;
+    }
     onSeriesChange();
     setTimeout(()=>{
-      document.getElementById('selLevel').value = record._level||record['Level']||record.level||'';
+      const levelSel = document.getElementById('selLevel');
+      const levelVal = record._level||record['Level']||record.level||'';
+      const levelOk = setSelectTrimmed(levelSel, levelVal);
+      if(!levelOk){
+        const available = Array.from(levelSel.options).map(o=>'"'+o.value+'"').join(', ');
+        showMsg('⚠️ Resume found level "'+levelVal+'" but available options are: '+available+'. Please select manually.','warn');
+        return;
+      }
       onLevelChange().then(()=>{
         setTimeout(()=>{
-          document.getElementById('selUnitFrom').value = record._unit_from||record['Unit_from']||record.unit_from||'';
-          document.getElementById('selUnitTo').value   = record._unit_to||record['Unit_to']||record.unit_to||'';
-          selectedHalf = record._half||record['Half']||record.half||'all';
+          const fromVal = String(record._unit_from||record['Unit_from']||record.unit_from||'').trim();
+          const toVal   = String(record._unit_to||record['Unit_to']||record.unit_to||'').trim();
+          const fromOk = setSelectTrimmed(document.getElementById('selUnitFrom'), fromVal);
+          const toOk   = setSelectTrimmed(document.getElementById('selUnitTo'), toVal);
+          if(!fromOk || !toOk){
+            showMsg('⚠️ Resume found unit "'+fromVal+'"–"'+toVal+'" but could not match unit options. Please select manually.','warn');
+            return;
+          }
+          selectedHalf = String(record._half||record['Half']||record.half||'all').trim();
           onUnitChange();
           sessionStorage.setItem('ds_record_id', record._record_id||record['Record ID']||record.record_id||'');
         },500);
