@@ -616,17 +616,23 @@ function getTargetMeaning(w){
   return m;
 }
 
-// Show which correct words have been caught (order not important here)
+// Show caught words in the order the student CAUGHT them (not the correct order,
+// so the answer isn't given away). Remaining slots stay as '?'.
 function renderCaughtProgress(){
   const wrap=document.getElementById('targetProgress');
   wrap.innerHTML='';
-  seqWords.forEach((word)=>{
-    const got = caughtWords.includes(word);
+  const total=seqWords.length;
+  for(let i=0;i<total;i++){
     const slot=document.createElement('div');
-    slot.className='seq-slot'+(got?' filled':'');
-    slot.textContent = got ? word : '?';
+    if(i<caughtWords.length){
+      slot.className='seq-slot filled';
+      slot.textContent=caughtWords[i];   // word in the order it was caught
+    } else {
+      slot.className='seq-slot';
+      slot.textContent='?';
+    }
     wrap.appendChild(slot);
-  });
+  }
 }
 
 function nextTarget(){
