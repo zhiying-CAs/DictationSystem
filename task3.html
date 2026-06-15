@@ -726,11 +726,13 @@ function endGame(passed,reason){
 function bigConfetti(){const wrap=document.getElementById('confettiWrap');const colors=['#4A9A3A','#6AAF45','#F59E0B','#3B82F6','#EC4899','#8B5CF6'];for(let i=0;i<60;i++){const p=document.createElement('div');p.className='confetti-piece';p.style.cssText=`left:${Math.random()*100}%;background:${colors[Math.floor(Math.random()*colors.length)]};width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;border-radius:${Math.random()>0.5?'50%':'2px'};--dur:${1.5+Math.random()*2}s;--delay:${Math.random()*1.5}s;`;wrap.appendChild(p);}setTimeout(()=>wrap.innerHTML='',5000);}
 
 function goNext(){
-  const taskDefs=[null,null,null,{page:'task4.html'},{page:'task5.html'}];
+  const taskDefs=[{page:'task1.html'},{page:'task2.html'},null,{page:'task4.html'},{page:'task5.html'}];
   const order=setup.task_order||[0,1,2,3,4];
   const enabled=setup.task_enabled||[true,true,true,true,true];
   const t3pos=order.indexOf(2);
   for(let i=t3pos+1;i<order.length;i++){const idx=order[i];if(enabled[idx]&&taskDefs[idx]?.page){window.location.href=taskDefs[idx].page;return;}}
+  // Mark session complete when this really is the last task
+  try{const q=new URLSearchParams({action:'updateRecord',record_id:(window.recordId||recordId||''),status:'all_tasks_complete'}).toString();fetch(API+'?'+q);}catch(e){}
   window.location.href='index.html';
 }
 

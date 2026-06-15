@@ -516,11 +516,23 @@ function showResult(){
 
   const btns=document.getElementById('resultBtns');btns.innerHTML='';
   if(passed){
-    const next=document.createElement('button');next.className='btn-next';next.textContent='Finish 🎉';next.onclick=goNext;btns.appendChild(next);
+    const next=document.createElement('button');next.className='btn-next';
+    next.textContent=hasNextTask()?'Next task ➜':'Finish 🎉';
+    next.onclick=goNext;btns.appendChild(next);
   } else {
     const redo=document.createElement('button');redo.className='btn-redo';redo.textContent='Try again 🔄';redo.onclick=()=>location.reload();btns.appendChild(redo);
   }
   const stop=document.createElement('button');stop.className='btn-stop';stop.textContent='Stop here';stop.onclick=uOpenExit;btns.appendChild(stop);
+}
+
+// Check whether any enabled task comes after this one in the configured order
+function hasNextTask(){
+  const taskDefs=[{page:'task1.html'},{page:'task2.html'},{page:'task3.html'},{page:'task4.html'},null];
+  const order=setup.task_order||[0,1,2,3,4];
+  const enabled=setup.task_enabled||[true,true,true,true,true];
+  const t5pos=order.indexOf(4);
+  for(let i=t5pos+1;i<order.length;i++){const idx=order[i];if(enabled[idx]&&taskDefs[idx]?.page)return true;}
+  return false;
 }
 
 function renderWordIdSummary(){
@@ -605,8 +617,13 @@ async function raiseHand(qi,btn){
 function bigConfetti(){const wrap=document.getElementById('confettiWrap');const colors=['#4A9A3A','#6AAF45','#F59E0B','#3B82F6','#EC4899','#8B5CF6'];for(let i=0;i<60;i++){const p=document.createElement('div');p.className='confetti-piece';p.style.cssText=`left:${Math.random()*100}%;background:${colors[Math.floor(Math.random()*colors.length)]};width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;border-radius:${Math.random()>0.5?'50%':'2px'};--dur:${1.5+Math.random()*2}s;--delay:${Math.random()*1.5}s;`;wrap.appendChild(p);}setTimeout(()=>wrap.innerHTML='',5000);}
 
 function goNext(){
-  // Task 5 is the final task. Mark session complete and go home.
-  try{const q=new URLSearchParams({action:'updateRecord',record_id:(window.recordId||''),status:'all_tasks_complete'}).toString();fetch(API+'?'+q);}catch(e){}
+  const taskDefs=[{page:'task1.html'},{page:'task2.html'},{page:'task3.html'},{page:'task4.html'},null];
+  const order=setup.task_order||[0,1,2,3,4];
+  const enabled=setup.task_enabled||[true,true,true,true,true];
+  const t5pos=order.indexOf(4);
+  for(let i=t5pos+1;i<order.length;i++){const idx=order[i];if(enabled[idx]&&taskDefs[idx]?.page){window.location.href=taskDefs[idx].page;return;}}
+  // This really is the last task — mark session complete and go home.
+  try{const q=new URLSearchParams({action:'updateRecord',record_id:(window.recordId||recordId||''),status:'all_tasks_complete'}).toString();fetch(API+'?'+q);}catch(e){}
   window.location.href='index.html';
 }
 

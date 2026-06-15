@@ -788,17 +788,17 @@ function applyResume(record){
   // Pre-fill fields after series levels load
   setTimeout(()=>{
     const serSel = document.getElementById('selSeries');
-    serSel.value = record['Series']||record.series||'';
+    serSel.value = record._series||record['Series']||record.series||'';
     onSeriesChange();
     setTimeout(()=>{
-      document.getElementById('selLevel').value = record['Level']||record.level||'';
+      document.getElementById('selLevel').value = record._level||record['Level']||record.level||'';
       onLevelChange().then(()=>{
         setTimeout(()=>{
-          document.getElementById('selUnitFrom').value = record['Unit_from']||record.unit_from||'';
-          document.getElementById('selUnitTo').value   = record['Unit_to']||record.unit_to||'';
-          selectedHalf = record['Half']||record.half||'all';
+          document.getElementById('selUnitFrom').value = record._unit_from||record['Unit_from']||record.unit_from||'';
+          document.getElementById('selUnitTo').value   = record._unit_to||record['Unit_to']||record.unit_to||'';
+          selectedHalf = record._half||record['Half']||record.half||'all';
           onUnitChange();
-          sessionStorage.setItem('ds_record_id', record['Record ID']||record.record_id||'');
+          sessionStorage.setItem('ds_record_id', record._record_id||record['Record ID']||record.record_id||'');
         },500);
       });
     },300);

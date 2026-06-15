@@ -267,10 +267,10 @@ async function resumeSession(){
       // CRITICAL: also restore ds_student, or setup.html will bounce back to this screen
       // (it requires a logged-in student before it will read ds_resume)
       const rec=d.data;
-      const studentName = rec['Student Name']||rec['Name']||rec.student_name||rec.name||'';
-      const studentId    = rec['Student ID']||rec['Student_ID']||rec.student_id||'';
-      const studentClass = rec['Class']||rec.class||'';
-      const studentTeacher = rec['Teacher']||rec['EL Teacher']||rec.teacher||'';
+      const studentName = rec._student_name||rec['Student Name']||rec['Name']||rec.student_name||rec.name||'';
+      const studentId    = rec._student_id||rec['Student ID']||rec['Student_ID']||rec.student_id||'';
+      const studentClass = rec._class||rec['Class']||rec.class||'';
+      const studentTeacher = rec._teacher||rec['Teacher']||rec['EL Teacher']||rec.teacher||'';
       sessionStorage.setItem('ds_student', JSON.stringify({
         name: studentName,
         student_id: studentId,
