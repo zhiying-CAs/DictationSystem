@@ -493,24 +493,14 @@ async function readPassage(){
   }catch(e){webSpeakPassage(text,btn);}
 }
 function webSpeakPassage(text,btn){
-  if(!window.speechSynthesis){btn.classList.remove('playing');return;}
+  if(!window.speechSynthesis){ btn.classList.remove('playing'); return; }
   speechSynthesis.cancel();
   const u=new SpeechSynthesisUtterance(text);u.lang='en-GB';u.rate=0.9;
-  // Use word-boundary events when available for accurate sync; else timer estimate
-  if('onboundary' in u){
-    let lit=-1;
-    u.onboundary=(ev)=>{
-      if(!highlightOn) return;
-      // Map character index to word index
-      const upto = text.slice(0, ev.charIndex).split(/\s+/).filter(Boolean).length;
-      const idx = Math.min(highlightWords.length-1, upto);
-      if(idx!==lit){ highlightWords.forEach((w,k)=>w.classList.toggle('reading', k===idx)); lit=idx; }
-    };
-  } else {
-    const wordCount = highlightWords.length || text.split(/\s+/).length;
-    const estSeconds = wordCount / (150*0.9/60);
-    startHighlightTimed(estSeconds);
-  }
+  // NOTE: onboundary is unreliable on mobile (property exists but never fires on
+  // iOS Safari / many Android browsers), so we ALWAYS drive highlight off a timer here.
+  const wordCount = highlightWords.length || text.split(/\s+/).length;
+  const estSeconds = wordCount / (150*0.9/60);
+  startHighlightTimed(estSeconds);
   u.onend=()=>{btn.classList.remove('playing');stopHighlight();};
   u.onerror=()=>{btn.classList.remove('playing');stopHighlight();};
   speechSynthesis.speak(u);
