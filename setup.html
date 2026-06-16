@@ -235,13 +235,42 @@ html,body{min-height:100vh;min-height:100dvh;font-family:'Nunito',sans-serif;bac
         <div class="field">
           <label>Pair Drop / Mind Check / Word Detective — number of Word Partners</label>
           <select id="numCollocations" onchange="onCollocChange()">
-            <option value="12" selected>12 (default)</option>
+            <option value="20" selected>20 (default)</option>
+            <option value="auto" id="collocAutoOpt" style="display:none">— words</option>
             <option value="custom">Custom number</option>
           </select>
           <input type="number" id="numCollocCustom" min="1" max="200" placeholder="e.g. 10"
             style="display:none;margin-top:8px;width:100%;padding:10px;border:1.5px solid var(--border);border-radius:10px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;" onchange="validateColloc()">
           <div id="collocWarn" style="display:none;font-size:12px;font-weight:700;color:#92400E;background:var(--amber-bg,#FEF3C7);border:1.5px solid var(--amber,#F59E0B);border-radius:10px;padding:8px 12px;margin-top:8px;"></div>
         </div>
+
+        <script>
+        // Adjust the Word Partner options based on the chosen word range.
+        // >=20 words: show "20 (default)" + Custom.
+        // <=19 words: grey out "20 (default)", auto-offer (wordCount - 2), + Custom.
+        function refreshCollocOptions(){
+          const sel=document.getElementById('numCollocations');
+          const defOpt=sel.querySelector('option[value="20"]');
+          const autoOpt=document.getElementById('collocAutoOpt');
+          const wc = (typeof wordCount==='number') ? wordCount : 20;
+          if(wc>=20){
+            defOpt.disabled=false; defOpt.textContent='20 (default)';
+            autoOpt.style.display='none';
+            if(sel.value==='auto'){ sel.value='20'; }
+          } else {
+            // word range 19 or fewer
+            defOpt.disabled=true; defOpt.textContent='20 (default) — too many';
+            const auto=Math.max(1, wc-2);
+            autoOpt.style.display='';
+            autoOpt.value='auto';
+            autoOpt.textContent=auto+' words (fits your range)';
+            autoOpt.dataset.auto=auto;
+            // If currently on the disabled 20, switch to the auto option
+            if(sel.value==='20'){ sel.value='auto'; }
+          }
+          if(typeof onCollocChange==='function') onCollocChange();
+        }
+        </script>
 
         <div class="field">
           <label>Mind Check & Word Detective — passing requirement</label>
@@ -255,10 +284,10 @@ html,body{min-height:100vh;min-height:100dvh;font-family:'Nunito',sans-serif;bac
         </div>
 
         <div class="field">
-          <label>Show definition during Spell Storm?</label>
+          <label>Show definition / translation during Spell Storm?</label>
           <select id="showDefinition">
-            <option value="yes">Yes — show EL definition</option>
-            <option value="no">No — hide definition</option>
+            <option value="yes">Yes — show</option>
+            <option value="no">No — hide</option>
           </select>
         </div>
 
@@ -588,6 +617,7 @@ async function doWordCount(series,level,from,to){
     document.getElementById('btnStart').disabled = wordCount===0;
     if(wordCount===0) showMsg('No words found for this selection.','warn');
     else clearMsg();
+    if(typeof refreshCollocOptions==='function') refreshCollocOptions();
     if(typeof validateColloc==='function') validateColloc();
   } catch(e){}
 }
@@ -675,6 +705,14 @@ document.addEventListener('DOMContentLoaded',()=>{
   });
 });
 
+// Friendly name of the next task to continue to (for the button label)
+function nextTaskLabelFromStatus(status){
+  const names={0:'Spell Storm',1:'Word Hunt',2:'Pair Drop',3:'Mind Check',4:'Word Detective'};
+  const page=nextTaskPageFromStatus(status);
+  const idx={'task1.html':0,'task2.html':1,'task3.html':2,'task4.html':3,'task5.html':4}[page];
+  return names[idx]||'next task';
+}
+
 // Map a record's last status to which task page to continue from.
 // Tasks done (by status): spell_storm_done=T1, pair_drop_done=T3, mind_check_done=T4, word_detective_done=T5.
 // We pick the FIRST task in the configured order that isn't done yet.
@@ -704,11 +742,15 @@ async function startSession(){
   const showDef = document.getElementById('showDefinition').value;
   const order   = document.getElementById('wordOrder').value;
   const repeat  = parseInt(document.getElementById('repeatCount').value) || 3;
-  let task3Colloc = 12;
-  if(document.getElementById('numCollocations').value==='custom'){
-    task3Colloc = parseInt(document.getElementById('numCollocCustom').value) || 12;
+  let task3Colloc = 20;
+  const collocSel = document.getElementById('numCollocations').value;
+  if(collocSel==='custom'){
+    task3Colloc = parseInt(document.getElementById('numCollocCustom').value) || 20;
+  } else if(collocSel==='auto'){
+    // word range 19 or fewer → use (word count − 2)
+    task3Colloc = parseInt(document.getElementById('collocAutoOpt').dataset.auto) || Math.max(1, wordCount-2);
   } else {
-    task3Colloc = parseInt(document.getElementById('numCollocations').value) || 12;
+    task3Colloc = parseInt(collocSel) || 20;
   }
   let passMark = document.getElementById('passMark').value || 'auto';
   if(passMark==='custom'){
@@ -871,17 +913,27 @@ async function applyResume(record){
   await onUnitChange();
   const rid = record._record_id||record['Record ID']||record.record_id||'';
   sessionStorage.setItem('ds_record_id', rid);
-  // Remember we're resuming an EXISTING record, and how far it got (status),
-  // so startSession continues it instead of creating a brand-new record/restarting Task 1.
   resumeRecordId = rid;
   resumeStatus = String(record._status||record['Status']||record.status||'').trim().toLowerCase();
-  sessionStorage.removeItem('ds_resume');  // consume it so a later re-render can't wipe the selection
-  // Re-assert the values in case any async handler reset them
-  setSelectTrimmed(serSel, seriesVal);
-  setSelectTrimmed(levelSel, levelVal);
-  setSelectTrimmed(document.getElementById('selUnitFrom'), fromVal);
-  setSelectTrimmed(document.getElementById('selUnitTo'), toVal);
-  showMsg('✅ Resumed! Press the green button below to continue where you left off.','success');
+  sessionStorage.removeItem('ds_resume');
+
+  // Re-assert the values now AND again shortly after, in case a late async handler
+  // (e.g. word-count refresh) resets any dropdown on a slower device.
+  const reassert=()=>{
+    setSelectTrimmed(serSel, seriesVal);
+    setSelectTrimmed(levelSel, levelVal);
+    setSelectTrimmed(document.getElementById('selUnitFrom'), fromVal);
+    setSelectTrimmed(document.getElementById('selUnitTo'), toVal);
+    document.getElementById('btnStart').disabled = false;
+  };
+  reassert();
+  setTimeout(reassert, 600);
+  setTimeout(reassert, 1500);
+
+  const nextLabel = nextTaskLabelFromStatus(resumeStatus);
+  document.getElementById('btnStart').innerHTML = '▶ Continue to ' + nextLabel;
+  document.getElementById('btnStart').disabled = false;
+  showMsg('✅ Resumed! Press the green button to continue to ' + nextLabel + '.','success');
 }
 
 // ---- Lock back navigation ----
