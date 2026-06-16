@@ -797,28 +797,33 @@ function setSelectTrimmed(selectEl, rawValue){
 
 async function applyResume(record){
   showMsg('📌 Resuming your previous session...','success');
+  const dbg=[];
 
   // 1. Series (levels populate synchronously inside onSeriesChange)
   const serSel = document.getElementById('selSeries');
   const seriesVal = record._series||record['Series']||record.series||'';
+  dbg.push('series-opts='+serSel.options.length);
   if(!setSelectTrimmed(serSel, seriesVal)){
     const available = Array.from(serSel.options).map(o=>'"'+o.value+'"').join(', ');
-    showMsg('⚠️ Resume found series "'+seriesVal+'" but available options are: '+available+'. Please pick manually.','warn');
+    showMsg('⚠️ Series "'+seriesVal+'" not found. Options: '+available+'. Pick manually.','warn');
     return;
   }
   onSeriesChange();
+  dbg.push('series-set='+serSel.value);
 
   // 2. Level
   const levelSel = document.getElementById('selLevel');
   const levelVal = record._level||record['Level']||record.level||'';
   if(!setSelectTrimmed(levelSel, levelVal)){
     const available = Array.from(levelSel.options).map(o=>'"'+o.value+'"').join(', ');
-    showMsg('⚠️ Resume found level "'+levelVal+'" but available options are: '+available+'. Please pick manually.','warn');
+    showMsg('⚠️ Level "'+levelVal+'" not found. Options: '+available+'. Pick manually.','warn');
     return;
   }
+  dbg.push('level-set='+levelSel.value);
 
   // 3. Units — WAIT for them to load (no fragile timeout)
   await onLevelChange();
+  dbg.push('unit-opts='+document.getElementById('selUnitFrom').options.length);
 
   const fromVal = String(record._unit_from||record['Unit_from']||record.unit_from||'').trim();
   const toVal   = String(record._unit_to||record['Unit_to']||record.unit_to||'').trim();
@@ -826,14 +831,20 @@ async function applyResume(record){
   const toOk   = setSelectTrimmed(document.getElementById('selUnitTo'), toVal);
   if(!fromOk || !toOk){
     const avail = Array.from(document.getElementById('selUnitFrom').options).map(o=>'"'+o.value+'"').join(', ');
-    showMsg('⚠️ Resume found unit "'+fromVal+'"–"'+toVal+'" but available units are: '+avail+'. Please pick manually.','warn');
+    showMsg('⚠️ Unit "'+fromVal+'"-"'+toVal+'" not found. Units: '+avail+'. Pick manually. ['+dbg.join('|')+']','warn');
     return;
   }
 
   selectedHalf = String(record._half||record['Half']||record.half||'all').trim();
   await onUnitChange();
   sessionStorage.setItem('ds_record_id', record._record_id||record['Record ID']||record.record_id||'');
-  showMsg('✅ Resumed! Check your selection below, then continue.','success');
+  sessionStorage.removeItem('ds_resume');  // consume it so a later re-render can't wipe the selection
+  // Re-assert the values in case any async handler reset them
+  setSelectTrimmed(serSel, seriesVal);
+  setSelectTrimmed(levelSel, levelVal);
+  setSelectTrimmed(document.getElementById('selUnitFrom'), fromVal);
+  setSelectTrimmed(document.getElementById('selUnitTo'), toVal);
+  showMsg('✅ Resumed! Series/Level/Unit filled. ['+dbg.join('|')+']','success');
 }
 
 // ---- Lock back navigation ----
