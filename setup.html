@@ -376,7 +376,7 @@ async function loadAll(){
 
     // Check resume
     const resume = JSON.parse(sessionStorage.getItem('ds_resume')||'null');
-    if(resume){ applyResume(resume); }
+    if(resume){ await applyResume(resume); }
 
   } catch(e){ showMsg('Connection error. Please refresh.','error'); }
   hideLoading();
@@ -795,45 +795,45 @@ function setSelectTrimmed(selectEl, rawValue){
   return false;
 }
 
-function applyResume(record){
+async function applyResume(record){
   showMsg('📌 Resuming your previous session...','success');
-  // Pre-fill fields after series levels load
-  setTimeout(()=>{
-    const serSel = document.getElementById('selSeries');
-    const seriesVal = record._series||record['Series']||record.series||'';
-    const seriesOk = setSelectTrimmed(serSel, seriesVal);
-    if(!seriesOk){
-      const available = Array.from(serSel.options).map(o=>'"'+o.value+'"').join(', ');
-      showMsg('⚠️ Resume found series "'+seriesVal+'" but available options are: '+available+'. Please select manually.','warn');
-      return;
-    }
-    onSeriesChange();
-    setTimeout(()=>{
-      const levelSel = document.getElementById('selLevel');
-      const levelVal = record._level||record['Level']||record.level||'';
-      const levelOk = setSelectTrimmed(levelSel, levelVal);
-      if(!levelOk){
-        const available = Array.from(levelSel.options).map(o=>'"'+o.value+'"').join(', ');
-        showMsg('⚠️ Resume found level "'+levelVal+'" but available options are: '+available+'. Please select manually.','warn');
-        return;
-      }
-      onLevelChange().then(()=>{
-        setTimeout(()=>{
-          const fromVal = String(record._unit_from||record['Unit_from']||record.unit_from||'').trim();
-          const toVal   = String(record._unit_to||record['Unit_to']||record.unit_to||'').trim();
-          const fromOk = setSelectTrimmed(document.getElementById('selUnitFrom'), fromVal);
-          const toOk   = setSelectTrimmed(document.getElementById('selUnitTo'), toVal);
-          if(!fromOk || !toOk){
-            showMsg('⚠️ Resume found unit "'+fromVal+'"–"'+toVal+'" but could not match unit options. Please select manually.','warn');
-            return;
-          }
-          selectedHalf = String(record._half||record['Half']||record.half||'all').trim();
-          onUnitChange();
-          sessionStorage.setItem('ds_record_id', record._record_id||record['Record ID']||record.record_id||'');
-        },500);
-      });
-    },300);
-  },300);
+
+  // 1. Series (levels populate synchronously inside onSeriesChange)
+  const serSel = document.getElementById('selSeries');
+  const seriesVal = record._series||record['Series']||record.series||'';
+  if(!setSelectTrimmed(serSel, seriesVal)){
+    const available = Array.from(serSel.options).map(o=>'"'+o.value+'"').join(', ');
+    showMsg('⚠️ Resume found series "'+seriesVal+'" but available options are: '+available+'. Please pick manually.','warn');
+    return;
+  }
+  onSeriesChange();
+
+  // 2. Level
+  const levelSel = document.getElementById('selLevel');
+  const levelVal = record._level||record['Level']||record.level||'';
+  if(!setSelectTrimmed(levelSel, levelVal)){
+    const available = Array.from(levelSel.options).map(o=>'"'+o.value+'"').join(', ');
+    showMsg('⚠️ Resume found level "'+levelVal+'" but available options are: '+available+'. Please pick manually.','warn');
+    return;
+  }
+
+  // 3. Units — WAIT for them to load (no fragile timeout)
+  await onLevelChange();
+
+  const fromVal = String(record._unit_from||record['Unit_from']||record.unit_from||'').trim();
+  const toVal   = String(record._unit_to||record['Unit_to']||record.unit_to||'').trim();
+  const fromOk = setSelectTrimmed(document.getElementById('selUnitFrom'), fromVal);
+  const toOk   = setSelectTrimmed(document.getElementById('selUnitTo'), toVal);
+  if(!fromOk || !toOk){
+    const avail = Array.from(document.getElementById('selUnitFrom').options).map(o=>'"'+o.value+'"').join(', ');
+    showMsg('⚠️ Resume found unit "'+fromVal+'"–"'+toVal+'" but available units are: '+avail+'. Please pick manually.','warn');
+    return;
+  }
+
+  selectedHalf = String(record._half||record['Half']||record.half||'all').trim();
+  await onUnitChange();
+  sessionStorage.setItem('ds_record_id', record._record_id||record['Record ID']||record.record_id||'');
+  showMsg('✅ Resumed! Check your selection below, then continue.','success');
 }
 
 // ---- Lock back navigation ----

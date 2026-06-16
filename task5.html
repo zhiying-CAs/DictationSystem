@@ -395,34 +395,27 @@ function stopHighlight(){
   highlightWords.forEach(w=>w.classList.remove('reading'));
 }
 
-// Highlight driven by the audio's REAL playback position when available.
-// WAV blobs from raw PCM often report duration as Infinity/NaN — in that case
-// we fall back to a steady timer estimate so highlighting still works.
-function startHighlightFromAudio(audio){
+// Highlight driven by the audio's playback position.
+// knownDur (computed exactly from PCM length) is the most reliable; we use the audio's
+// real currentTime against it so highlighting tracks the voice precisely.
+function startHighlightFromAudio(audio, knownDur){
   stopHighlight();
   if(!highlightOn || !highlightWords.length) return;
   highlightAudio = audio;
   const n = highlightWords.length;
 
-  // Estimate total duration for fallback (≈165 wpm reading pace)
-  const estSeconds = n / (165/60);
+  // Best available total duration: the exact computed one, else audio.duration, else estimate
+  let total = (knownDur && knownDur>0) ? knownDur
+            : (isFinite(audio.duration) && audio.duration>0) ? audio.duration
+            : n / (165/60);
   const startedAt = performance.now();
 
   function tick(){
     if(!highlightAudio || highlightAudio.paused || highlightAudio.ended){ return; }
-    const dur = highlightAudio.duration;
-    let frac;
-    if(isFinite(dur) && dur>0){
-      // Real audio position (best accuracy)
-      frac = highlightAudio.currentTime / dur;
-    } else if(highlightAudio.currentTime>0){
-      // Duration unknown but we have a moving currentTime → estimate against estSeconds
-      frac = highlightAudio.currentTime / estSeconds;
-    } else {
-      // Duration AND currentTime unusable → use wall-clock elapsed vs estimate
-      frac = (performance.now()-startedAt)/1000 / estSeconds;
-    }
-    frac = Math.max(0, Math.min(0.999, frac));
+    // Prefer the audio's real currentTime; fall back to wall-clock if it's stuck at 0
+    let elapsed = highlightAudio.currentTime;
+    if(!(elapsed>0)) elapsed = (performance.now()-startedAt)/1000;
+    let frac = Math.max(0, Math.min(0.999, elapsed/total));
     const idx = Math.floor(frac * n);
     highlightWords.forEach((w,k)=>w.classList.toggle('reading', k===idx));
     highlightRAF = requestAnimationFrame(tick);
@@ -449,6 +442,7 @@ function startHighlightTimed(totalSeconds){
 
 // Read passage aloud (cached TTS)
 const passageAudioCache={};
+const passageAudioDur={};   // exact audio duration (seconds) per passage text
 async function readPassage(){
   const q=questions[currentQ];
   const text=q.passage;
@@ -473,15 +467,19 @@ async function readPassage(){
           const wav=pcmToWav(bytes,24000,1,16);
           url=URL.createObjectURL(new Blob([wav],{type:'audio/wav'}));
           passageAudioCache[text]=url;
+          // Exact duration = samples / sampleRate. bytes = 16-bit mono PCM.
+          passageAudioDur[text] = (bytes.length/2) / 24000;
         }
       }
     }
     if(url){
       const a=new Audio(url);
-      // Drive highlight off the real audio position so it always matches the voice.
-      // Use both onplay and onplaying for cross-browser reliability (iOS Safari quirk).
+      // We KNOW the exact duration from the PCM length (24000 Hz, 16-bit mono):
+      // seconds = numSamples / sampleRate = (byteLength/2) / 24000.
+      // This is far more reliable than audio.duration (which is often Infinity for WAV blobs).
+      const knownDur = passageAudioDur[text] || 0;
       let started=false;
-      const begin=()=>{ if(!started){ started=true; startHighlightFromAudio(a); } };
+      const begin=()=>{ if(!started){ started=true; startHighlightFromAudio(a, knownDur); } };
       a.onplay=begin;
       a.onplaying=begin;
       a.onended=()=>{btn.classList.remove('playing');stopHighlight();};
