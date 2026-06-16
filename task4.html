@@ -3,8 +3,29 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
 <title>Mind Check 🧠</title>
 <style>
+/* === Kiosk / full-screen lockdown (for Jamf Single App Mode) === */
+*{
+  -webkit-user-select:none;   /* no text selection / long-press copy */
+  user-select:none;
+  -webkit-touch-callout:none; /* no long-press menu (copy/define/share) */
+  -webkit-tap-highlight-color:transparent;
+}
+/* Inputs still need to be usable for typing (name search, PIN, etc.) */
+input,textarea,select{
+  -webkit-user-select:text;
+  user-select:text;
+}
+/* Hide scrollbars everywhere but keep scrolling working */
+*::-webkit-scrollbar{width:0;height:0;display:none;}
+html,body{-ms-overflow-style:none;scrollbar-width:none;}
+/* Prevent the whole page from being dragged/bounced and double-tap zoom */
+html,body{overscroll-behavior:none;touch-action:pan-y;}
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 :root{
   --g1:#1E5C1E;--g2:#2D7D2D;--g3:#4A9A3A;--g4:#6AAF45;--g5:#8DC63F;--g6:#C5E8A0;--g7:#EAF7D8;
