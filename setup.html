@@ -289,6 +289,8 @@ const API = 'https://script.google.com/macros/s/AKfycbw76QSB-lv4pA-6s_m6vNk_oGEd
 
 let seriesLevels = [];
 let allUnits     = [];
+let resumeRecordId = '';   // set when resuming an existing session
+let resumeStatus   = '';   // that record's last status, to know which task to continue from
 let selectedHalf = 'all'; // deprecated, kept for resume compatibility
 let teacherUnlocked = false;
 let config = {};
@@ -673,6 +675,25 @@ document.addEventListener('DOMContentLoaded',()=>{
   });
 });
 
+// Map a record's last status to which task page to continue from.
+// Tasks done (by status): spell_storm_done=T1, pair_drop_done=T3, mind_check_done=T4, word_detective_done=T5.
+// We pick the FIRST task in the configured order that isn't done yet.
+function nextTaskPageFromStatus(status){
+  const pages={0:'task1.html',1:'task2.html',2:'task3.html',3:'task4.html',4:'task5.html'};
+  // Which task indices are already complete?
+  const done=new Set();
+  if(/spell_storm_done|pair_drop|mind_check|word_detective|all_tasks_complete/.test(status)) done.add(0); // T1 done if we got past it
+  if(/pair_drop_done|all_tasks_complete/.test(status)) done.add(2);
+  if(/mind_check_done|all_tasks_complete/.test(status)) done.add(3);
+  if(/word_detective_done|all_tasks_complete/.test(status)) done.add(4);
+  const order = taskOrder && taskOrder.length ? taskOrder : [0,1,2,3,4];
+  const enabled = taskEnabled || [true,true,true,true,true];
+  for(const idx of order){
+    if(enabled[idx] && !done.has(idx) && pages[idx]) return pages[idx];
+  }
+  return 'task1.html'; // fallback
+}
+
 // ---- Start session ----
 async function startSession(){
   const student = JSON.parse(sessionStorage.getItem('ds_student')||'{}');
@@ -752,8 +773,19 @@ async function startSession(){
   sessionStorage.removeItem('ds_session_words');
   sessionStorage.removeItem('ds_session_word_ids');
 
-  // Create record in sheet
+  // Create record in sheet — UNLESS we're resuming an existing one
   try {
+    if(resumeRecordId){
+      // RESUME: reuse the existing record, jump to the next unfinished task.
+      // Downstream tasks (3/4/5) read ds_words — set it from the rebuilt Task 1 list.
+      sessionStorage.setItem('ds_record_id', resumeRecordId);
+      sessionStorage.setItem('ds_words', JSON.stringify(task1Words));
+      hideLoading();
+      const nextPage = nextTaskPageFromStatus(resumeStatus);
+      window.location.href = nextPage;
+      return;
+    }
+
     const res = await api({
       action:       'saveRecord',
       student_id:   student.student_id||'',
@@ -837,14 +869,19 @@ async function applyResume(record){
 
   selectedHalf = String(record._half||record['Half']||record.half||'all').trim();
   await onUnitChange();
-  sessionStorage.setItem('ds_record_id', record._record_id||record['Record ID']||record.record_id||'');
+  const rid = record._record_id||record['Record ID']||record.record_id||'';
+  sessionStorage.setItem('ds_record_id', rid);
+  // Remember we're resuming an EXISTING record, and how far it got (status),
+  // so startSession continues it instead of creating a brand-new record/restarting Task 1.
+  resumeRecordId = rid;
+  resumeStatus = String(record._status||record['Status']||record.status||'').trim().toLowerCase();
   sessionStorage.removeItem('ds_resume');  // consume it so a later re-render can't wipe the selection
   // Re-assert the values in case any async handler reset them
   setSelectTrimmed(serSel, seriesVal);
   setSelectTrimmed(levelSel, levelVal);
   setSelectTrimmed(document.getElementById('selUnitFrom'), fromVal);
   setSelectTrimmed(document.getElementById('selUnitTo'), toVal);
-  showMsg('✅ Resumed! Series/Level/Unit filled. ['+dbg.join('|')+']','success');
+  showMsg('✅ Resumed! Press the green button below to continue where you left off.','success');
 }
 
 // ---- Lock back navigation ----
