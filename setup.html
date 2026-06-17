@@ -939,7 +939,16 @@ async function applyResume(record){
   const rid = record._record_id||record['Record ID']||record.record_id||'';
   sessionStorage.setItem('ds_record_id', rid);
   resumeRecordId = rid;
-  resumeStatus = String(record._status||record['Status']||record.status||'').trim().toLowerCase();
+  // Read progress from several possible sources, so resume works even if the backend
+  // didn't return the _status alias (e.g. Code.gs not redeployed yet).
+  let st = String(record._status||record['Status']||record.status||'').trim().toLowerCase();
+  // Backup: if status is blank, infer the furthest task from the "Task" column (T1..T5)
+  if(!st){
+    const taskCol = String(record._task||record['Task']||record.task||'').trim().toUpperCase();
+    const taskToStatus={T1:'spell_storm_done',T2:'spell_storm_done',T3:'pair_drop_done',T4:'mind_check_done',T5:'word_detective_done'};
+    st = taskToStatus[taskCol] || '';
+  }
+  resumeStatus = st;
   sessionStorage.removeItem('ds_resume');
 
   // Re-assert the values now AND again shortly after, in case a late async handler
