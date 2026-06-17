@@ -102,6 +102,19 @@ body{display:flex;flex-direction:column;}
 
 /* RESULT */
 .result-overlay{position:fixed;inset:0;background:rgba(234,247,216,0.97);z-index:150;display:none;flex-direction:column;align-items:center;justify-content:flex-start;padding:24px 20px;text-align:center;overflow-y:auto;}
+.lock-overlay{position:fixed;inset:0;background:rgba(20,40,20,0.92);z-index:200;display:none;flex-direction:column;align-items:center;justify-content:center;padding:28px;text-align:center;gap:14px;}
+.lock-overlay.show{display:flex;}
+.lock-emoji{font-size:56px;}
+.lock-title{font-size:20px;font-weight:900;color:white;}
+.lock-sub{font-size:14px;font-weight:600;color:#C8E6C9;}
+.lock-timer{font-size:64px;font-weight:900;color:#FFD54F;letter-spacing:2px;font-variant-numeric:tabular-nums;}
+.lock-unlock{background:white;border-radius:18px;padding:20px;width:100%;max-width:380px;margin-top:10px;}
+.lock-q-label{font-size:13px;font-weight:800;color:var(--g2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+.lock-q-mean{font-size:24px;font-weight:900;color:var(--g1);margin-bottom:14px;}
+.lock-q-options{display:flex;flex-direction:column;gap:8px;}
+.lock-q-opt{padding:14px;border:2px solid var(--border);border-radius:12px;background:var(--g7);font-family:'Nunito',sans-serif;font-size:16px;font-weight:800;color:var(--g1);cursor:pointer;}
+.lock-q-opt:active{transform:scale(0.98);}
+.lock-q-opt.wrong{border-color:var(--danger);background:#FEE2E2;}
 .result-overlay.show{display:flex;}
 .result-emoji{font-size:60px;margin:20px 0 10px;animation:bounce 0.6s ease infinite alternate;}
 @keyframes bounce{from{transform:translateY(0);}to{transform:translateY(-10px);}}
@@ -199,6 +212,19 @@ body{display:flex;flex-direction:column;}
   <div class="explain-lang-bar" id="explainLangBar"></div>
   <div class="review-list" id="reviewList"></div>
   <div class="result-btns" id="resultBtns"></div>
+</div>
+
+<!-- Cooldown / unlock lock-screen (anti-rushing) -->
+<div class="lock-overlay" id="lockOverlay">
+  <div class="lock-emoji">⏳</div>
+  <div class="lock-title" id="lockTitle">Take a break and read your words!</div>
+  <div class="lock-sub" id="lockSub">You can try again after the timer.</div>
+  <div class="lock-timer" id="lockTimer">10:00</div>
+  <div class="lock-unlock" id="lockUnlock" style="display:none">
+    <div class="lock-q-label">Answer this to unlock 🔑</div>
+    <div class="lock-q-mean" id="lockQMean">—</div>
+    <div class="lock-q-options" id="lockQOptions"></div>
+  </div>
 </div>
 
 <div class="u-topbar">
@@ -338,11 +364,20 @@ function sndWin(){[523,587,659,698,784,880,988,1047].forEach((f,i)=>tone(f,0.14,
     shuffle(opts);
     return {word:w,passage:w.short_passage,question:w.qns,options:opts};
   });
+  shuffle(questions);  // randomise question order each attempt (anti-cheat)
 
   if(!questions.length){
     alert('No passages found for these words. Please check the sheet (Short Passage, Qns columns).');
     window.location.href='setup.html';return;
   }
+
+  // Pool for the anti-rushing unlock question
+  window.sessionWordsForUnlock = sessionWords.filter(w=>w.collocations&&w.collocations.trim());
+
+  // Resume an active cooldown if there is one
+  const cd=parseInt(sessionStorage.getItem('ds_t5_cooldown_until')||'0');
+  if(cd && Date.now()<cd){ showCooldown(); return; }
+  if(cd && Date.now()>=cd){ showUnlockQuestion(); return; }
 
   api({action:'updateRecord',record_id:recordId,status:'word_detective_started'});
   showQuestion(0);
@@ -570,24 +605,109 @@ function showResult(){
 
   const ov=document.getElementById('resultOverlay');ov.classList.add('show');
   document.getElementById('resultEmoji').textContent=passed?'🎉':'💪';
-  document.getElementById('resultTitle').textContent=passed?'Brilliant detective work! 🔍':'Good try, detective!';
-  document.getElementById('resultScore').textContent=`Score: ${score} / ${total}`;
-  document.getElementById('resultPct').textContent=`${pct}% correct`;
-  if(passed){sndWin();bigConfetti();}
+  document.getElementById('resultTitle').textContent=passed?'Brilliant detective work! 🔍':'Good try, detective! Try again to pass.';
+  document.getElementById('resultPct').textContent=passed?`${pct}% correct`:'';
 
-  buildExplainLangBar();
-  renderWordIdSummary();
-  renderReview();
+  if(passed){
+    sndWin();bigConfetti();
+    document.getElementById('resultScore').textContent=`Score: ${score} / ${total}`;
+    buildExplainLangBar();
+    renderWordIdSummary();
+    renderReview();
+  } else {
+    // Not passed → hide which answers were right/wrong (anti-cheat). Just retry.
+    document.getElementById('resultScore').textContent='';
+    const lb=document.getElementById('explainLangBar'); if(lb) lb.innerHTML='';
+    const ws=document.getElementById('wordidSummary'); if(ws) ws.innerHTML='';
+    const rv=document.getElementById('reviewList'); if(rv) rv.innerHTML='';
+  }
 
   const btns=document.getElementById('resultBtns');btns.innerHTML='';
   if(passed){
     const next=document.createElement('button');next.className='btn-next';
     next.textContent=hasNextTask()?'Next task ➜':'Finish 🎉';
     next.onclick=goNext;btns.appendChild(next);
+    sessionStorage.removeItem('ds_t5_fails');  // reset on success
   } else {
-    const redo=document.createElement('button');redo.className='btn-redo';redo.textContent='Try again 🔄';redo.onclick=()=>location.reload();btns.appendChild(redo);
+    let fails=parseInt(sessionStorage.getItem('ds_t5_fails')||'0')+1;
+    sessionStorage.setItem('ds_t5_fails', String(fails));
+    const redo=document.createElement('button');redo.className='btn-redo';redo.textContent='Try again 🔄';
+    if(fails>=2){ redo.onclick=()=>startCooldown(); }  // 2nd fail onwards → wait + unlock Q
+    else { redo.onclick=()=>location.reload(); }        // 1st fail → free retry
+    btns.appendChild(redo);
   }
   const stop=document.createElement('button');stop.className='btn-stop';stop.textContent='Stop here';stop.onclick=uOpenExit;btns.appendChild(stop);
+}
+
+// ===== Anti-rushing cooldown + unlock question (2nd fail onwards) =====
+let COOLDOWN_MS = 10*60*1000;  // 10 minutes
+let cooldownTimer=null;
+function startCooldown(){
+  document.getElementById('resultOverlay').classList.remove('show');
+  const until = Date.now()+COOLDOWN_MS;
+  sessionStorage.setItem('ds_t5_cooldown_until', String(until));
+  showCooldown();
+}
+function showCooldown(){
+  const until=parseInt(sessionStorage.getItem('ds_t5_cooldown_until')||'0');
+  const lock=document.getElementById('lockOverlay');
+  lock.classList.add('show');
+  document.getElementById('lockUnlock').style.display='none';
+  document.getElementById('lockTitle').textContent='Take a break and read your words!';
+  document.getElementById('lockSub').textContent='You can try again after the timer.';
+  if(cooldownTimer)clearInterval(cooldownTimer);
+  const tick=()=>{
+    const left=until-Date.now();
+    if(left<=0){
+      clearInterval(cooldownTimer);
+      document.getElementById('lockTimer').textContent='0:00';
+      showUnlockQuestion();
+      return;
+    }
+    const m=Math.floor(left/60000), s=Math.floor((left%60000)/1000);
+    document.getElementById('lockTimer').textContent=m+':'+String(s).padStart(2,'0');
+  };
+  tick();
+  cooldownTimer=setInterval(tick,500);
+}
+function showUnlockQuestion(){
+  const pool=(window.sessionWordsForUnlock||[]).filter(w=>w.collocations&&w.collocations.trim());
+  document.getElementById('lockTimer').textContent='✅';
+  document.getElementById('lockTitle').textContent='Time is up!';
+  document.getElementById('lockSub').textContent='Answer correctly to start again.';
+  const box=document.getElementById('lockUnlock');box.style.display='block';
+  if(!pool.length){
+    box.innerHTML='';
+    const btn=document.createElement('button');btn.className='lock-q-opt';btn.textContent='Start again ▶';
+    btn.onclick=()=>{ sessionStorage.removeItem('ds_t5_cooldown_until'); location.reload(); };
+    box.appendChild(btn);
+    return;
+  }
+  const target=pool[Math.floor(Math.random()*pool.length)];
+  const correct=target.collocations.trim();
+  const dm=sessionStorage.getItem('ds_display_mode')||'el';
+  const CK={zh:'collocation_zh',ms:'collocation_ms',id:'collocation_id',vi:'collocation_vi',th:'collocation_th',my:'collocation_my',km:'collocation_km',bn:'collocation_bn'};
+  let mean='';
+  if(dm!=='el'&&CK[dm]) mean=(target[CK[dm]]||'').trim();
+  if(!mean) mean=(target.collocation_meaning||'').trim()||correct;
+  document.getElementById('lockQMean').textContent=mean;
+  const opts=[correct];
+  const others=pool.filter(w=>w.word_id!==target.word_id&&w.collocations);
+  shuffle(others);
+  for(const w of others){ if(opts.length>=3)break; const c=w.collocations.trim(); if(!opts.includes(c))opts.push(c); }
+  shuffle(opts);
+  const cont=document.getElementById('lockQOptions');cont.innerHTML='';
+  opts.forEach(o=>{
+    const btn=document.createElement('button');btn.className='lock-q-opt';btn.textContent=o;
+    btn.onclick=()=>{
+      if(o===correct){
+        sndCorrect&&sndCorrect();
+        sessionStorage.removeItem('ds_t5_cooldown_until');  // keep fail count
+        location.reload();
+      } else { sndWrong&&sndWrong(); btn.classList.add('wrong'); setTimeout(()=>startCooldown(),600); }
+    };
+    cont.appendChild(btn);
+  });
 }
 
 // Check whether any enabled task comes after this one in the configured order

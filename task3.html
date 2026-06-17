@@ -696,14 +696,18 @@ function nextTarget(){
 
 function startDropping(target){
   dropRound++;   // this is round 1, 2, ...
-  // Build falling options: every NOT-YET-CAUGHT correct word + a misspelled distractor for each
-  const remaining = seqWords.filter(w=>!caughtWords.includes(w));
+  // Build falling options based on how many of each word are STILL needed
+  // (count-based, so duplicate words like "as ... as" work correctly).
+  const needed = wordsStillNeeded();   // e.g. ['as','as','snow'] if one 'as' already caught
   const options=[];
-  remaining.forEach(word=>{
+  // Drop one tile per still-needed word (collapse duplicates to one tile each visually,
+  // but allow catching it multiple times via the count check in catchWord)
+  const uniqueNeeded=[...new Set(needed)];
+  uniqueNeeded.forEach(word=>{
     options.push({text:word, correct:true});
   });
-  const usedTexts=new Set(remaining.map(w=>w.toLowerCase()));
-  remaining.forEach(word=>{
+  const usedTexts=new Set(uniqueNeeded.map(w=>w.toLowerCase()));
+  uniqueNeeded.forEach(word=>{
     const bad=misspell(word);
     if(!usedTexts.has(bad.toLowerCase())){
       options.push({text:bad, correct:false});
@@ -712,6 +716,16 @@ function startDropping(target){
   });
   shuffle(options);
   dropWords(options);
+}
+
+// How many of each correct word still need catching (accounts for duplicates)
+function wordsStillNeeded(){
+  const need={};
+  seqWords.forEach(w=>{ need[w]=(need[w]||0)+1; });
+  caughtWords.forEach(w=>{ if(need[w]) need[w]--; });
+  const out=[];
+  Object.keys(need).forEach(w=>{ for(let i=0;i<need[w];i++) out.push(w); });
+  return out;
 }
 
 function dropWords(options){
@@ -753,6 +767,7 @@ function animateFall(){
     fallRAF=requestAnimationFrame(animateFall);
     return;
   }
+  fallRAF=null;
   // All words for this round have fallen / been caught
   if(!gameActive) return;
   if(caughtWords.length>=seqWords.length) return; // all caught → handled in catchWord
@@ -783,8 +798,10 @@ function catchWord(fw){
     return;
   }
 
-  // Correct word — catch it (order doesn't matter at this stage)
-  if(caughtWords.includes(fw.opt.text)){ return; } // already have it
+  // Correct word — only accept if this word is still needed (handles duplicates by count)
+  const need = wordsStillNeeded();
+  if(!need.includes(fw.opt.text)){ return; } // this word is already fully caught
+
   fw.caught=true;
   fw.el.classList.add('caught-correct');sndCorrect();
   caughtWords.push(fw.opt.text);
@@ -795,7 +812,41 @@ function catchWord(fw){
     if(fallRAF)cancelAnimationFrame(fallRAF);
     fallingWords.forEach(f=>{if(!f.caught){f.caught=true;f.el.remove();}});
     setTimeout(()=>{ if(gameActive) showSortPanel(); },350);
+  } else if(wordsStillNeeded().includes(fw.opt.text)){
+    // Another copy of THIS word is still needed (e.g. second "as") → drop it again quickly
+    const word=fw.opt.text;
+    setTimeout(()=>{
+      if(!gameActive) return;
+      // spawn one more falling tile of this word + a distractor, without penalty
+      const opts=[{text:word,correct:true}];
+      const bad=misspell(word);
+      opts.push({text:bad,correct:false});
+      shuffle(opts);
+      // add these to the current falling set instead of clearing
+      addFallingTiles(opts);
+    },250);
   }
+}
+
+// Add extra falling tiles to the current round (used when a duplicate word is still needed)
+function addFallingTiles(options){
+  const area=document.getElementById('gameArea');
+  const areaW=area.clientWidth;
+  options.forEach((opt,i)=>{
+    const el=document.createElement('div');
+    el.className='falling-word';
+    el.textContent=opt.text;
+    el.style.top='-50px';
+    area.appendChild(el);
+    const elW=el.offsetWidth;
+    const maxX=Math.max(4,areaW-elW-4);
+    const x=Math.min(maxX,Math.max(4,(areaW/(options.length+1))*(i+1)-elW/2+(Math.random()*40-20)));
+    el.style.left=x+'px';
+    const fw={el,opt,y:-50-(i*70),speed:0.35+Math.random()*0.2,caught:false};
+    el.onclick=()=>catchWord(fw);
+    fallingWords.push(fw);
+  });
+  if(!fallRAF) animateFall();
 }
 
 // ===== Drag-to-order step =====
