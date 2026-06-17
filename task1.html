@@ -416,6 +416,7 @@ let currentRepeat = 0;
 let autoTimer    = null;
 let displayMode  = null; // 'el' or lang code (zh, ms, id, vi, th, my, km, bn) — chosen once, applies to every word
 let modeLangSelection = null;
+let _audioUnlocked = false;
 
 // ---- Init ----
 (async function(){
@@ -491,6 +492,10 @@ let modeLangSelection = null;
 
   showWord(0);
 
+  // Backup: unlock audio on the very first tap anywhere (belt-and-suspenders for iOS)
+  document.addEventListener('touchstart', unlockAudio, {once:true, passive:true});
+  document.addEventListener('click', unlockAudio, {once:true});
+
   // Auto-play first word after short delay
   setTimeout(()=> playCurrentWord(), 800);
 })();
@@ -554,8 +559,40 @@ function confirmDisplayMode(){
   displayMode = (modeLangSelection !== null) ? modeLangSelection : 'el';
   // Save so Task 3 flashcards show the same language the student chose here
   try{ sessionStorage.setItem('ds_display_mode', displayMode); }catch(e){}
+  // Unlock audio for iOS/iPad (must happen inside this real user tap, or iOS blocks all playback)
+  unlockAudio();
   document.getElementById('modeModal').classList.remove('show');
   if(window._resolveDisplayMode) window._resolveDisplayMode();
+}
+
+// iOS/Safari blocks audio that isn't started by a user gesture. Calling this inside a real
+// tap "unlocks" the audio channel so later auto-play and speaker taps work on iPad.
+function unlockAudio(){
+  if(_audioUnlocked) return;
+  _audioUnlocked = true;
+  try{
+    // 1) Prime a (Web)AudioContext
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if(Ctx){
+      if(!window._dsAudioCtx) window._dsAudioCtx = new Ctx();
+      if(window._dsAudioCtx.state === 'suspended') window._dsAudioCtx.resume();
+      // play one silent buffer
+      const buf = window._dsAudioCtx.createBuffer(1, 1, 22050);
+      const src = window._dsAudioCtx.createBufferSource();
+      src.buffer = buf; src.connect(window._dsAudioCtx.destination); src.start(0);
+    }
+    // 2) Prime an HTMLAudioElement (so new Audio().play() works later)
+    const a = new Audio();
+    a.muted = true;
+    // tiny silent wav
+    a.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+    a.play().catch(()=>{});
+    // 3) Prime speechSynthesis fallback too
+    if(window.speechSynthesis){
+      const u = new SpeechSynthesisUtterance(''); u.volume=0;
+      try{ speechSynthesis.speak(u); }catch(e){}
+    }
+  }catch(e){}
 }
 
 // ---- API ----
