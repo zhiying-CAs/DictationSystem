@@ -981,7 +981,17 @@ function startWaitTimer(waitEnd){
 // ============ END ============
 function endGame(passed,reason){
   gameActive=false;stopTenseMusic();if(fallRAF)cancelAnimationFrame(fallRAF);clearInterval(gameTimer);
-  api({action:'updateRecord',record_id:recordId,score:score+'/'+gameWords.length,wrong_words:failedPairs.map(w=>w.word_id).join(','),status:passed?'pair_drop_done':'pair_drop_ended'});
+  // Attempts = failed tries + this one. Track fails across reloads via sessionStorage.
+  let t3Attempts;
+  if(passed){
+    t3Attempts = (parseInt(sessionStorage.getItem('ds_t3_fails')||'0')+1);
+    sessionStorage.removeItem('ds_t3_fails');
+  } else {
+    sessionStorage.setItem('ds_t3_fails', String(parseInt(sessionStorage.getItem('ds_t3_fails')||'0')+1));
+  }
+  api({action:'updateRecord',record_id:recordId,score:score+'/'+gameWords.length,wrong_words:failedPairs.map(w=>w.word_id).join(','),
+    ...(passed?{task3_attempts:t3Attempts}:{}),
+    status:passed?'pair_drop_done':'pair_drop_ended'});
   const ov=document.getElementById('resultOverlay');ov.classList.add('show');
   if(passed){sndWin();bigConfetti();document.getElementById('resultEmoji').textContent='🏆';document.getElementById('resultTitle').textContent='You did it! Amazing!';}
   else{document.getElementById('resultEmoji').textContent='⏰';document.getElementById('resultTitle').textContent=reason||'Game over';}

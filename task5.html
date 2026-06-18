@@ -270,6 +270,7 @@ const LANG_LABELS={en:'English',zh:'中文',ms:'Malay',id:'Indonesia',vi:'Việt
 const LANG_KEY={zh:'translation_zh',ms:'translation_ms',id:'translation_id',vi:'translation_vi',th:'translation_th',my:'translation_my',km:'translation_km',bn:'translation_bn'};
 
 let config={},setup={},student={},recordId='';
+let COOLDOWN_MS=10*60*1000, cooldownTimer=null;
 let questions=[];
 let highlightOn = true;       // default ON (student can turn off)
 let highlightTimer = null;
@@ -377,7 +378,7 @@ function sndWin(){[523,587,659,698,784,880,988,1047].forEach((f,i)=>tone(f,0.14,
   // Resume an active cooldown if there is one
   const cd=parseInt(sessionStorage.getItem('ds_t5_cooldown_until')||'0');
   if(cd && Date.now()<cd){ showCooldown(); return; }
-  if(cd && Date.now()>=cd){ showUnlockQuestion(); return; }
+  if(cd && Date.now()>=cd){ document.getElementById('lockOverlay').classList.add('show'); cooldownDone(); return; }
 
   api({action:'updateRecord',record_id:recordId,status:'word_detective_started'});
   showQuestion(0);
@@ -597,10 +598,12 @@ function showResult(){
   else { passScore=Math.min(parseInt(pm), total); } // never require more than total
   const passed=score>=passScore;
 
+  const t5Attempts = passed ? (parseInt(sessionStorage.getItem('ds_t5_fails')||'0')+1) : undefined;
   api({action:'updateRecord',record_id:recordId,
     score:score+'/'+total,
     wrong_words:answers.filter(a=>!a.isCorrect).map(a=>a.word.word_id).join(','),
     task5_results:answers.map(a=>a.word.word_id+':'+(a.isCorrect?'1':'0')).join(' '),
+    ...(passed?{task5_attempts:t5Attempts}:{}),
     status:passed?'word_detective_done':'word_detective_failed'});
 
   const ov=document.getElementById('resultOverlay');ov.classList.add('show');
@@ -640,8 +643,7 @@ function showResult(){
 }
 
 // ===== Anti-rushing cooldown + unlock question (2nd fail onwards) =====
-let COOLDOWN_MS = 10*60*1000;  // 10 minutes
-let cooldownTimer=null;
+// (COOLDOWN_MS & cooldownTimer declared at top)
 function startCooldown(){
   document.getElementById('resultOverlay').classList.remove('show');
   const until = Date.now()+COOLDOWN_MS;
@@ -661,7 +663,7 @@ function showCooldown(){
     if(left<=0){
       clearInterval(cooldownTimer);
       document.getElementById('lockTimer').textContent='0:00';
-      showUnlockQuestion();
+      cooldownDone();
       return;
     }
     const m=Math.floor(left/60000), s=Math.floor((left%60000)/1000);
@@ -669,6 +671,17 @@ function showCooldown(){
   };
   tick();
   cooldownTimer=setInterval(tick,500);
+}
+// Timer finished → just let them start again (no unlock question, pure wait)
+function cooldownDone(){
+  document.getElementById('lockTimer').textContent='✅';
+  document.getElementById('lockTitle').textContent='Time is up!';
+  document.getElementById('lockSub').textContent='You can try again now.';
+  const box=document.getElementById('lockUnlock');box.style.display='block';
+  box.innerHTML='';
+  const btn=document.createElement('button');btn.className='lock-q-opt';btn.textContent='Start again ▶';
+  btn.onclick=()=>{ sessionStorage.removeItem('ds_t5_cooldown_until'); location.reload(); };
+  box.appendChild(btn);
 }
 function showUnlockQuestion(){
   const pool=(window.sessionWordsForUnlock||[]).filter(w=>w.collocations&&w.collocations.trim());

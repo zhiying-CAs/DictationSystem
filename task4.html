@@ -249,6 +249,7 @@ const LANG_LABELS={en:'English',zh:'中文',ms:'Malay',id:'Indonesia',vi:'Việt
 const LANG_KEY={zh:'translation_zh',ms:'translation_ms',id:'translation_id',vi:'translation_vi',th:'translation_th',my:'translation_my',km:'translation_km',bn:'translation_bn'};
 
 let config={},setup={},student={},recordId='';
+let COOLDOWN_MS=10*60*1000, cooldownTimer=null;
 let questions=[];
 let currentQ=0,score=0;
 let answers=[]; // {word, picked, correct, isCorrect, q}
@@ -352,7 +353,7 @@ function sndWin(){[523,587,659,698,784,880,988,1047].forEach((f,i)=>tone(f,0.14,
   // If a cooldown is still active from a previous fail, show the lock screen instead of the quiz
   const cd=parseInt(sessionStorage.getItem('ds_t4_cooldown_until')||'0');
   if(cd && Date.now()<cd){ showCooldown(); return; }
-  if(cd && Date.now()>=cd){ showUnlockQuestion(); return; }  // timer already elapsed → ask unlock Q
+  if(cd && Date.now()>=cd){ document.getElementById('lockOverlay').classList.add('show'); cooldownDone(); return; }  // timer elapsed → start again
 
   api({action:'updateRecord',record_id:recordId,status:'mind_check_started'});
   showQuestion(0);
@@ -424,10 +425,13 @@ function showResult(){
   else { passScore=Math.min(parseInt(pm), total); } // never require more than total
   const passed=score>=passScore;
 
+  // Attempts = how many times they tried in total (failed attempts + this passing one)
+  const t4Attempts = passed ? (parseInt(sessionStorage.getItem('ds_t4_fails')||'0')+1) : undefined;
   api({action:'updateRecord',record_id:recordId,
     score:score+'/'+total,
     wrong_words:answers.filter(a=>!a.isCorrect).map(a=>a.word.word_id).join(','),
     task4_results:answers.map(a=>a.word.word_id+':'+(a.isCorrect?'1':'0')).join(' '),
+    ...(passed?{task4_attempts:t4Attempts}:{}),
     status:passed?'mind_check_done':'mind_check_failed'});
 
   const ov=document.getElementById('resultOverlay');ov.classList.add('show');
@@ -474,8 +478,7 @@ function showResult(){
 }
 
 // ===== Anti-rushing cooldown + unlock question (2nd fail onwards) =====
-let COOLDOWN_MS = 10*60*1000;  // 10 minutes
-let cooldownTimer=null;
+// (COOLDOWN_MS & cooldownTimer declared at top)
 function startCooldown(){
   document.getElementById('resultOverlay').classList.remove('show');
   const until = Date.now()+COOLDOWN_MS;
@@ -495,7 +498,7 @@ function showCooldown(){
     if(left<=0){
       clearInterval(cooldownTimer);
       document.getElementById('lockTimer').textContent='0:00';
-      showUnlockQuestion();
+      cooldownDone();
       return;
     }
     const m=Math.floor(left/60000), s=Math.floor((left%60000)/1000);
@@ -503,6 +506,17 @@ function showCooldown(){
   };
   tick();
   cooldownTimer=setInterval(tick,500);
+}
+// Timer finished → just let them start again (no unlock question, pure wait)
+function cooldownDone(){
+  document.getElementById('lockTimer').textContent='✅';
+  document.getElementById('lockTitle').textContent='Time is up!';
+  document.getElementById('lockSub').textContent='You can try again now.';
+  const box=document.getElementById('lockUnlock');box.style.display='block';
+  box.innerHTML='';
+  const btn=document.createElement('button');btn.className='lock-q-opt';btn.textContent='Start again ▶';
+  btn.onclick=()=>{ sessionStorage.removeItem('ds_t4_cooldown_until'); location.reload(); };
+  box.appendChild(btn);
 }
 function showUnlockQuestion(){
   // Pick a random word with a collocation to quiz (revive-style: see meaning, pick collocation)
