@@ -109,6 +109,21 @@ body{display:flex;flex-direction:column;}
 .seq-slot{padding:4px 10px;border-radius:8px;border:1.5px dashed var(--g4);background:rgba(255,255,255,0.5);font-size:13px;font-weight:800;color:var(--muted);min-width:30px;text-align:center;}
 .seq-slot.filled{border-style:solid;border-color:var(--g3);background:white;color:var(--g1);}
 .drop-countdown{position:absolute;top:48%;left:0;right:0;text-align:center;font-size:72px;font-weight:900;color:var(--g2);z-index:20;pointer-events:none;text-shadow:0 2px 8px rgba(0,0,0,0.15);}
+.study-overlay{position:fixed;inset:0;background:linear-gradient(160deg,#2E5E1E,#3A7A28);z-index:180;display:none;flex-direction:column;align-items:center;justify-content:center;padding:28px;text-align:center;gap:14px;}
+.study-overlay.show{display:flex;}
+.study-emoji{font-size:60px;}
+.study-title{font-size:24px;font-weight:900;color:white;}
+.study-msg{font-size:16px;font-weight:700;color:#DCEDC8;max-width:420px;}
+.study-timer{font-size:68px;font-weight:900;color:#FFD54F;letter-spacing:2px;font-variant-numeric:tabular-nums;}
+.study-encourage{font-size:16px;font-weight:800;color:white;background:rgba(255,255,255,0.15);border-radius:14px;padding:12px 18px;max-width:420px;min-height:24px;transition:opacity 0.4s;}
+.study-check{background:white;border-radius:18px;padding:22px;width:100%;max-width:400px;margin-top:6px;}
+.study-check-title{font-size:16px;font-weight:800;color:var(--g1);margin-bottom:6px;}
+.study-check-sub{font-size:13px;font-weight:700;color:var(--muted);margin-bottom:12px;}
+.study-check-mean{font-size:26px;font-weight:900;color:var(--g1);background:var(--g7);border-radius:12px;padding:14px;margin-bottom:16px;}
+.study-pin-row{display:flex;gap:8px;}
+.study-pin{flex:1;padding:12px;border:2px solid var(--border);border-radius:12px;font-family:'Nunito',sans-serif;font-size:18px;font-weight:800;text-align:center;letter-spacing:3px;}
+.study-pin-btn{padding:12px 18px;border:none;border-radius:12px;background:linear-gradient(135deg,var(--g2),var(--g3));color:white;font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;cursor:pointer;}
+.study-pin-err{color:var(--danger);font-size:13px;font-weight:700;margin-top:8px;}
 .sort-panel{position:absolute;inset:0;background:rgba(234,247,216,0.97);z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;}
 .sort-title{font-size:16px;font-weight:800;color:var(--g1);text-align:center;}
 .sort-slots{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center;max-width:100%;}
@@ -308,6 +323,7 @@ body{display:flex;flex-direction:column;}
       <div class="fc-subtitle">📝 Write them down — you'll need them soon!</div>
     </div>
     <div class="fc-progress-bar"><div class="fc-progress-fill" id="fcProgressFill" style="width:0%"></div></div>
+    <div class="fc-count" id="fcCount" style="text-align:center;font-size:13px;font-weight:800;color:var(--g2);margin-top:2px;">Card 1 of 1</div>
     <div class="fc-wrap">
       <div class="flashcard" id="flashcard" onclick="flipCard()">
         <div class="fc-face fc-front">
@@ -331,6 +347,27 @@ body{display:flex;flex-direction:column;}
     <div class="fc-controls">
       <button class="fc-btn" id="fcPrev" onclick="prevCard()">⏮ Prev</button>
       <button class="fc-btn fc-btn-main" id="fcNext" onclick="nextCard()">Next ⏭</button>
+    </div>
+  </div>
+
+  <!-- STUDY WAIT: read & copy your notes, then teacher checks -->
+  <div class="study-overlay" id="studyOverlay">
+    <div class="study-emoji">📖</div>
+    <div class="study-title" id="studyTitle">Study time!</div>
+    <div class="study-msg" id="studyMsg">Read and copy your Word Partners and their meanings.</div>
+    <div class="study-timer" id="studyTimer">5:00</div>
+    <div class="study-encourage" id="studyEncourage">✍️ Write neatly — your notes will help you win the game!</div>
+    <!-- Teacher check (after timer) -->
+    <div class="study-check" id="studyCheck" style="display:none">
+      <div class="study-check-title">📓 Give your <b>My Word Partners Journal</b> to your teacher</div>
+      <div class="study-check-sub">Teacher: check the student copied this word partner correctly 👇</div>
+      <div class="study-check-mean" id="studyCheckMean">—</div>
+      <div class="study-pin-row">
+        <input type="password" class="study-pin" id="studyPin" placeholder="Teacher PIN" maxlength="10" inputmode="numeric"
+          onkeydown="if(event.key==='Enter')verifyStudyPin()">
+        <button class="study-pin-btn" onclick="verifyStudyPin()">Unlock 🔓</button>
+      </div>
+      <div class="study-pin-err" id="studyPinErr" style="display:none">Wrong PIN. Try again.</div>
     </div>
   </div>
 
@@ -415,7 +452,7 @@ let gameActive=false;
 let reviveTarget=null;
 let waitTimer=null,waitSeconds=600;
 
-async function api(p){const q=new URLSearchParams(p).toString();const r=await fetch(API+'?'+q);return r.json();}
+async function api(p, keepalive){const q=new URLSearchParams(p).toString();const r=await fetch(API+'?'+q, keepalive?{keepalive:true}:undefined);return r.json();}
 function showLoading(t){document.getElementById('overlayText').textContent=t||'...';document.getElementById('overlay').classList.add('show');}
 function hideLoading(){document.getElementById('overlay').classList.remove('show');}
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
@@ -564,6 +601,10 @@ function webSpeak(text,btn){
 
   showCard(0);
   hideLoading();
+  // If the student reloaded during the study-wait, resume that wait (can't skip it)
+  const sw=parseInt(sessionStorage.getItem('ds_t3_study_end')||'0');
+  if(sw && Date.now()<sw){ startStudyWait(); }
+  else if(sw && Date.now()>=sw){ document.getElementById('flashcardPhase').style.display='none'; document.getElementById('studyOverlay').classList.add('show'); showStudyCheck(); }
   document.addEventListener('touchstart',()=>{try{getCtx().resume();}catch(e){}},{once:true});
 })();
 
@@ -584,12 +625,13 @@ function showCard(idx){
   if(!meaning) meaning = w.collocation_meaning||'—';
   document.getElementById('fcMeaning').textContent=meaning;
   document.getElementById('fcProgressFill').style.width=((idx+1)/gameWords.length*100)+'%';
+  document.getElementById('fcCount').textContent='Card '+(idx+1)+' of '+gameWords.length;
   document.getElementById('fcPrev').disabled=(idx===0);
   document.getElementById('fcNext').textContent=(idx===gameWords.length-1)?'Start game 🎮':'Next ⏭';
 }
 function flipCard(){document.getElementById('flashcard').classList.toggle('flipped');}
 function prevCard(){if(currentCardIdx>0)showCard(currentCardIdx-1);}
-function nextCard(){if(currentCardIdx<gameWords.length-1)showCard(currentCardIdx+1);else startGame();}
+function nextCard(){if(currentCardIdx<gameWords.length-1)showCard(currentCardIdx+1);else startStudyWait();}
 
 // ============ GAME ============
 function misspell(word){
@@ -606,6 +648,97 @@ function misspell(word){
   }
   const result=chars.join('');
   return result===word?word+'e':result;
+}
+
+let studyTimer=null;
+let studyEncourageTimer=null;
+const STUDY_ENCOURAGEMENTS=[
+  "✍️ Write neatly — your notes will help you win the game!",
+  "📖 Read each Word Partner out loud. Saying it helps you remember!",
+  "🌱 Learning has no shortcuts — but you can do this!",
+  "💪 Copy the meaning too, not just the words.",
+  "⭐ The students who read carefully win the game faster!",
+  "🧠 Picture each phrase in your mind as you read it.",
+  "📝 Check your spelling — copy every letter correctly.",
+  "🎯 This is not a punishment — it's how you get better at English!"
+];
+function startStudyWait(){
+  document.getElementById('flashcardPhase').style.display='none';
+  const overlay=document.getElementById('studyOverlay');
+  overlay.classList.add('show');
+  document.getElementById('studyCheck').style.display='none';
+  document.getElementById('studyTitle').textContent='Study time!';
+  document.getElementById('studyMsg').textContent='Read and copy your Word Partners and their meanings into your journal.';
+
+  // Duration: teacher-configurable, default 5 min. Persist end-time so reload can't skip it.
+  const mins = parseInt(config.task3_study_minutes);
+  const dur = (isNaN(mins)?5:mins)*60*1000;
+  let end = parseInt(sessionStorage.getItem('ds_t3_study_end')||'0');
+  if(!end || end<Date.now()){ end=Date.now()+dur; sessionStorage.setItem('ds_t3_study_end', String(end)); }
+
+  // Rotate encouragements
+  let ei=0;
+  const enc=document.getElementById('studyEncourage');
+  enc.textContent=STUDY_ENCOURAGEMENTS[0];
+  if(studyEncourageTimer)clearInterval(studyEncourageTimer);
+  studyEncourageTimer=setInterval(()=>{
+    ei=(ei+1)%STUDY_ENCOURAGEMENTS.length;
+    enc.style.opacity='0';
+    setTimeout(()=>{ enc.textContent=STUDY_ENCOURAGEMENTS[ei]; enc.style.opacity='1'; },400);
+  },5000);
+
+  if(studyTimer)clearInterval(studyTimer);
+  const tick=()=>{
+    const left=end-Date.now();
+    if(left<=0){
+      clearInterval(studyTimer);
+      document.getElementById('studyTimer').textContent='0:00';
+      showStudyCheck();
+      return;
+    }
+    const m=Math.floor(left/60000), s=Math.floor((left%60000)/1000);
+    document.getElementById('studyTimer').textContent=m+':'+String(s).padStart(2,'0');
+  };
+  tick();
+  studyTimer=setInterval(tick,500);
+}
+
+function showStudyCheck(){
+  if(studyEncourageTimer)clearInterval(studyEncourageTimer);
+  document.getElementById('studyTimer').textContent='✅';
+  document.getElementById('studyTitle').textContent='Time is up!';
+  document.getElementById('studyMsg').textContent='Great reading! Now show your teacher.';
+  document.getElementById('studyEncourage').style.display='none';
+  document.getElementById('studyCheck').style.display='block';
+  // Pick a random word partner for the teacher to spot-check against the student's journal
+  const pool=gameWords.filter(w=>w.collocations&&w.collocations.trim());
+  if(pool.length){
+    const target=pool[Math.floor(Math.random()*pool.length)];
+    document.getElementById('studyCheckMean').textContent=getTargetMeaning(target);
+  } else {
+    document.getElementById('studyCheckMean').textContent='—';
+  }
+  document.getElementById('studyPin').focus();
+}
+
+async function verifyStudyPin(){
+  const pin=document.getElementById('studyPin').value.trim();
+  if(!pin)return;
+  try{
+    const q=new URLSearchParams({action:'verifyPin',pin}).toString();
+    const res=await (await fetch(API+'?'+q)).json();
+    if(res.verified){
+      sessionStorage.removeItem('ds_t3_study_end');
+      document.getElementById('studyOverlay').classList.remove('show');
+      document.getElementById('studyEncourage').style.display='block';
+      startGame();
+    }else{
+      document.getElementById('studyPinErr').style.display='block';
+      document.getElementById('studyPin').value='';
+    }
+  }catch(e){
+    document.getElementById('studyPinErr').style.display='block';
+  }
 }
 
 function startGame(){
@@ -658,7 +791,7 @@ function renderCaughtProgress(){
 
 function nextTarget(){
   if(currentTargetIdx>=gameWords.length){endGame(true);return;}
-  document.getElementById('gameProgress').textContent=`${currentTargetIdx}/${gameWords.length}`;
+  document.getElementById('gameProgress').textContent=`${currentTargetIdx+1} / ${gameWords.length}`;
   const target=gameWords[currentTargetIdx];
 
   // Top: show the MEANING (in chosen language)
@@ -991,7 +1124,7 @@ function endGame(passed,reason){
   }
   api({action:'updateRecord',record_id:recordId,score:score+'/'+gameWords.length,wrong_words:failedPairs.map(w=>w.word_id).join(','),
     ...(passed?{task3_attempts:t3Attempts}:{}),
-    status:passed?'pair_drop_done':'pair_drop_ended'});
+    status:passed?'pair_drop_done':'pair_drop_ended'}, true);
   const ov=document.getElementById('resultOverlay');ov.classList.add('show');
   if(passed){sndWin();bigConfetti();document.getElementById('resultEmoji').textContent='🏆';document.getElementById('resultTitle').textContent='You did it! Amazing!';}
   else{document.getElementById('resultEmoji').textContent='⏰';document.getElementById('resultTitle').textContent=reason||'Game over';}

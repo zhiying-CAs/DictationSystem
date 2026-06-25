@@ -257,7 +257,7 @@ let selectedOption=null,answered=false;
 let explainLang='en';
 window.recordId='';
 
-async function api(p){const q=new URLSearchParams(p).toString();const r=await fetch(API+'?'+q);return r.json();}
+async function api(p, keepalive){const q=new URLSearchParams(p).toString();const r=await fetch(API+'?'+q, keepalive?{keepalive:true}:undefined);return r.json();}
 function showLoading(t){document.getElementById('overlayText').textContent=t||'...';document.getElementById('overlay').classList.add('show');}
 function hideLoading(){document.getElementById('overlay').classList.remove('show');}
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
@@ -353,7 +353,7 @@ function sndWin(){[523,587,659,698,784,880,988,1047].forEach((f,i)=>tone(f,0.14,
   // If a cooldown is still active from a previous fail, show the lock screen instead of the quiz
   const cd=parseInt(sessionStorage.getItem('ds_t4_cooldown_until')||'0');
   if(cd && Date.now()<cd){ showCooldown(); return; }
-  if(cd && Date.now()>=cd){ document.getElementById('lockOverlay').classList.add('show'); cooldownDone(); return; }  // timer elapsed → start again
+  if(cd && Date.now()>=cd){ document.getElementById('lockOverlay').classList.add('show'); showUnlockQuestion(); return; }  // timer elapsed → start again
 
   api({action:'updateRecord',record_id:recordId,status:'mind_check_started'});
   showQuestion(0);
@@ -432,7 +432,7 @@ function showResult(){
     wrong_words:answers.filter(a=>!a.isCorrect).map(a=>a.word.word_id).join(','),
     task4_results:answers.map(a=>a.word.word_id+':'+(a.isCorrect?'1':'0')).join(' '),
     ...(passed?{task4_attempts:t4Attempts}:{}),
-    status:passed?'mind_check_done':'mind_check_failed'});
+    status:passed?'mind_check_done':'mind_check_failed'}, true);
 
   const ov=document.getElementById('resultOverlay');ov.classList.add('show');
   document.getElementById('resultEmoji').textContent=passed?'🎉':'💪';
@@ -498,7 +498,7 @@ function showCooldown(){
     if(left<=0){
       clearInterval(cooldownTimer);
       document.getElementById('lockTimer').textContent='0:00';
-      cooldownDone();
+      showUnlockQuestion();
       return;
     }
     const m=Math.floor(left/60000), s=Math.floor((left%60000)/1000);

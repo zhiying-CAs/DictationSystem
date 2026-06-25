@@ -761,6 +761,8 @@ async function playWordCycle(){
 const ttsCache = {};
 
 async function playAudio(w){
+  // iOS may keep re-suspending the audio context — resume it right before playing
+  try{ if(window._dsAudioCtx && window._dsAudioCtx.state==='suspended') await window._dsAudioCtx.resume(); }catch(e){}
   return new Promise(async (resolve)=>{
     if(w.audio_file){
       const audio = new Audio('audio/' + w.audio_file);
@@ -803,6 +805,7 @@ async function fetchTTS(word){
 }
 
 async function playTTSPromise(word){
+  try{ if(window._dsAudioCtx && window._dsAudioCtx.state==='suspended') await window._dsAudioCtx.resume(); }catch(e){}
   return new Promise(async (resolve)=>{
     const url = await fetchTTS(word);
     if(!url){ await playWebSpeechPromise(word); resolve(); return; }
