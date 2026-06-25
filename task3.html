@@ -544,8 +544,9 @@ function webSpeak(text,btn){
   const existingStored=sessionStorage.getItem('ds_session_words');
   if(existingStored){try{existingSessionWords=JSON.parse(existingStored);}catch(e){existingSessionWords=[];}}
 
-  if(existingSessionWords.length){
-    gameWords = existingSessionWords;
+  if(existingSessionWords.length && existingSessionWords.some(w=>(w.collocations||'').trim())){
+    // Reuse a previous task's selection ONLY if it actually carries collocation data
+    gameWords = existingSessionWords.filter(w=>(w.collocations||'').trim());
   } else {
 
   // === Task 3 MUST use the same words as Task 1 ===
@@ -616,15 +617,16 @@ function showCard(idx){
   currentCardIdx=idx;
   const w=gameWords[idx];
   document.getElementById('flashcard').classList.remove('flipped');
-  document.getElementById('fcPartner').textContent=w.collocations;
-  document.getElementById('fcTarget').textContent='pairs with: '+w.word;
+  // Partner text: prefer collocations; some stored rows use different keys, so fall back.
+  const partner = (w.collocations||w.collocation||w.Collocations||'').trim();
+  document.getElementById('fcPartner').textContent = partner || '(no word partner)';
+  document.getElementById('fcTarget').textContent='pairs with: '+(w.word||w.Word||'');
   // Show the meaning in the language the student chose in Spell Storm.
-  // If that language has no data (blank in Master), fall back to English meaning — no prompt.
   let meaning='';
   if(displayMode && displayMode!=='el' && COLLOC_KEY[displayMode]){
     meaning = (w[COLLOC_KEY[displayMode]]||'').trim();
   }
-  if(!meaning) meaning = w.collocation_meaning||'—';
+  if(!meaning) meaning = (w.collocation_meaning||w.collocationMeaning||'').trim()||'—';
   document.getElementById('fcMeaning').textContent=meaning;
   document.getElementById('fcProgressFill').style.width=((idx+1)/gameWords.length*100)+'%';
   document.getElementById('fcCount').textContent='Card '+(idx+1)+' of '+gameWords.length;
