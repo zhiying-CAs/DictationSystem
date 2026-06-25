@@ -351,27 +351,7 @@ body{display:flex;flex-direction:column;}
     </div>
   </div>
 
-  <!-- STUDY WAIT: read & copy your notes, then teacher checks -->
-  <div class="study-overlay" id="studyOverlay">
-    <div class="study-emoji">📖</div>
-    <div class="study-title" id="studyTitle">Study time!</div>
-    <div class="study-msg" id="studyMsg">Read and copy your Word Partners and their meanings.</div>
-    <div class="study-timer" id="studyTimer">5:00</div>
-    <div class="study-encourage" id="studyEncourage">✍️ Write neatly — your notes will help you win the game!<br><span class='enc-zh'>字写工整 —— 你的笔记能帮你赢游戏！</span></div>
-    <!-- Teacher check (after timer) -->
-    <div class="study-check" id="studyCheck" style="display:none">
-      <div class="study-check-title">📓 Give your <b>My Word Partners Journal</b> to your teacher</div>
-      <div class="study-check-sub">Teacher: check the student copied this word partner correctly 👇</div>
-      <div class="study-check-mean" id="studyCheckMean">—</div>
-      <div class="study-pin-row">
-        <input type="password" class="study-pin" id="studyPin" placeholder="Teacher PIN" maxlength="10" inputmode="numeric"
-          onkeydown="if(event.key==='Enter')verifyStudyPin()">
-        <button class="study-pin-btn" onclick="verifyStudyPin()">Unlock 🔓</button>
-      </div>
-      <div class="study-pin-err" id="studyPinErr" style="display:none">Wrong PIN. Try again.</div>
-    </div>
-  </div>
-
+  
   <!-- PHASE 2: Game -->
   <div class="game-phase" id="gamePhase">
     <div class="game-hud">
@@ -610,11 +590,8 @@ function webSpeak(text,btn){
     document.getElementById('fcPartner').textContent='Error: '+err.message;
   }
   hideLoading();
-  // Only resume the study-wait if it is STILL counting down (student reloaded mid-wait).
-  // A stale/expired timestamp must NOT skip the flashcards — clear it and show flashcards.
-  const sw=parseInt(sessionStorage.getItem('ds_t3_study_end')||'0');
-  if(sw && Date.now()<sw){ startStudyWait(); }
-  else { sessionStorage.removeItem('ds_t3_study_end'); }
+  // Study-wait removed — clear any leftover timestamp so it never triggers.
+  sessionStorage.removeItem('ds_t3_study_end');
   document.addEventListener('touchstart',()=>{try{getCtx().resume();}catch(e){}},{once:true});
 })();
 
@@ -642,7 +619,7 @@ function showCard(idx){
 }
 function flipCard(){document.getElementById('flashcard').classList.toggle('flipped');}
 function prevCard(){if(currentCardIdx>0)showCard(currentCardIdx-1);}
-function nextCard(){if(currentCardIdx<gameWords.length-1)showCard(currentCardIdx+1);else startStudyWait();}
+function nextCard(){if(currentCardIdx<gameWords.length-1)showCard(currentCardIdx+1);else startGame();}
 
 // ============ GAME ============
 function misspell(word){
