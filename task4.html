@@ -159,6 +159,7 @@ body{display:flex;flex-direction:column;}
 .u-exit-btns button{padding:14px;border:none;border-radius:13px;font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;cursor:pointer;}
 .u-btn-continue{background:linear-gradient(135deg,var(--g2),var(--g3));color:white;}
 .u-btn-home{background:var(--amber-bg);color:#92400E;border:1.5px solid var(--amber);}
+.u-btn-skip{background:#E0E7FF;color:#3730A3;border:1.5px solid #6366F1;}
 .u-btn-cancel{background:var(--g7);color:var(--muted);border:1.5px solid var(--border);}
 .u-pin-input{width:100%;padding:12px;border:1.5px solid var(--border);border-radius:12px;font-size:18px;font-weight:800;letter-spacing:4px;text-align:center;outline:none;margin-bottom:12px;font-family:'Nunito',sans-serif;}
 .u-pin-err{font-size:12px;color:var(--danger);font-weight:700;margin-bottom:8px;display:none;}
@@ -183,6 +184,7 @@ body{display:flex;flex-direction:column;}
     </div>
     <div class="u-exit-btns" id="uChoiceBtns" style="display:none">
       <button class="u-btn-continue" onclick="uCloseExit()">▶️ Continue this task</button>
+      <button class="u-btn-skip" onclick="uSkipTask()">⏭ Skip this task</button>
       <button class="u-btn-home" onclick="uPauseExit()">🏠 Pause & go to home</button>
     </div>
   </div>
@@ -688,6 +690,12 @@ async function uVerifyPin(){
 async function uPauseExit(){
   try{const q=new URLSearchParams({action:'updateRecord',record_id:(window.recordId||''),status:'paused'}).toString();await fetch(API+'?'+q);}catch(e){}
   window.location.href='index.html';
+}
+// Teacher skips this task (PIN already verified). Mark skipped, go to next task.
+async function uSkipTask(){
+  try{const q=new URLSearchParams({action:'updateRecord',record_id:(window.recordId||sessionStorage.getItem('ds_record_id')||''),status:'mind_check_skipped'}).toString();await fetch(API+'?'+q, {keepalive:true});}catch(e){}
+  document.getElementById('uExitChoice').classList.remove('show');
+  goNext();
 }
 
 history.pushState(null,'',location.href);
