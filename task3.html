@@ -87,6 +87,16 @@ body{display:flex;flex-direction:column;}
 .fc-flip-icon{display:inline-block;animation:flipBob 1.5s ease infinite;}
 @keyframes flipBob{0%,100%{transform:translateY(0);}50%{transform:translateY(-4px);}}
 .fc-controls{display:flex;gap:10px;}
+.handover-overlay{position:fixed;inset:0;background:linear-gradient(160deg,var(--g1),var(--g3));z-index:190;display:none;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center;gap:16px;}
+.handover-overlay.show{display:flex;}
+.handover-emoji{font-size:64px;}
+.handover-msg-en{font-size:19px;font-weight:800;color:white;max-width:440px;line-height:1.4;}
+.handover-msg-zh{font-size:17px;font-weight:700;color:#DCEDC8;max-width:440px;line-height:1.5;}
+.handover-pin-label{font-size:13px;font-weight:800;color:white;letter-spacing:1px;text-transform:uppercase;margin-top:8px;}
+.handover-pin{width:200px;padding:14px;border:none;border-radius:14px;font-family:'Nunito',sans-serif;font-size:22px;font-weight:800;text-align:center;letter-spacing:6px;}
+.handover-btn{padding:14px 30px;border:none;border-radius:16px;background:white;color:var(--g1);font-family:'Nunito',sans-serif;font-size:17px;font-weight:900;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,0.2);}
+.handover-btn:active{transform:scale(0.97);}
+.handover-err{color:#FFCDD2;font-size:14px;font-weight:700;background:rgba(0,0,0,0.2);border-radius:10px;padding:8px 14px;}
 .fc-btn{flex:1;padding:14px;border:1.5px solid var(--border);border-radius:14px;background:var(--white);font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;color:var(--muted);cursor:pointer;transition:all 0.15s;}
 .fc-btn:active{transform:scale(0.97);}
 .fc-btn:disabled{opacity:0.4;}
@@ -352,7 +362,18 @@ body{display:flex;flex-direction:column;}
     </div>
   </div>
 
-  
+  <!-- HANDOVER: pass notebook to teacher, teacher keys in PIN to start the game -->
+  <div class="handover-overlay" id="handoverOverlay">
+    <div class="handover-emoji">📓</div>
+    <div class="handover-msg-en">Please pass your <b>My Word Partners Journal</b> to your teacher before you start the game.</div>
+    <div class="handover-msg-zh">请把你的《词语搭配手册》交给老师，然后才能开始游戏。</div>
+    <div class="handover-pin-label">Teacher PIN 老师密码</div>
+    <input type="password" class="handover-pin" id="handoverPin" placeholder="••••••" maxlength="10" inputmode="numeric"
+      onkeydown="if(event.key==='Enter')verifyHandoverPin()">
+    <button class="handover-btn" onclick="verifyHandoverPin()">Start Pair Drop 🎯</button>
+    <div class="handover-err" id="handoverErr" style="display:none">Wrong PIN. Try again. 密码错误，请重试。</div>
+  </div>
+
   <!-- PHASE 2: Game -->
   <div class="game-phase" id="gamePhase">
     <div class="game-hud">
@@ -628,7 +649,30 @@ function showCard(idx){
 }
 function flipCard(){document.getElementById('flashcard').classList.toggle('flipped');}
 function prevCard(){if(currentCardIdx>0)showCard(currentCardIdx-1);}
-function nextCard(){if(currentCardIdx<gameWords.length-1)showCard(currentCardIdx+1);else startGame();}
+function nextCard(){if(currentCardIdx<gameWords.length-1)showCard(currentCardIdx+1);else showHandover();}
+function showHandover(){
+  document.getElementById('flashcardPhase').style.display='none';
+  document.getElementById('handoverErr').style.display='none';
+  document.getElementById('handoverPin').value='';
+  document.getElementById('handoverOverlay').classList.add('show');
+}
+async function verifyHandoverPin(){
+  const pin=document.getElementById('handoverPin').value.trim();
+  if(!pin)return;
+  try{
+    const q=new URLSearchParams({action:'verifyPin',pin}).toString();
+    const res=await (await fetch(API+'?'+q)).json();
+    if(res.verified){
+      document.getElementById('handoverOverlay').classList.remove('show');
+      startGame();
+    }else{
+      document.getElementById('handoverErr').style.display='block';
+      document.getElementById('handoverPin').value='';
+    }
+  }catch(e){
+    document.getElementById('handoverErr').style.display='block';
+  }
+}
 
 // ============ GAME ============
 function misspell(word){

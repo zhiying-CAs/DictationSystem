@@ -642,11 +642,20 @@ function showResult(){
   const stop=document.createElement('button');stop.className='btn-stop';stop.textContent='Stop here';stop.onclick=uOpenExit;btns.appendChild(stop);
 }
 
-// ===== Anti-rushing cooldown + unlock question (2nd fail onwards) =====
+// Wait grows with fails: 2nd=2.5min, 3rd=5min, 4th=7.5min, 5th+=10min
+function cooldownMsForFails(fails){
+  if(fails>=5) return 10*60*1000;
+  if(fails===4) return 7.5*60*1000;
+  if(fails===3) return 5*60*1000;
+  return 2.5*60*1000; // 2nd fail
+}
+
+// ===== Anti-rushing cooldown + unlock question (3rd fail onwards) =====
 // (COOLDOWN_MS & cooldownTimer declared at top)
 function startCooldown(){
   document.getElementById('resultOverlay').classList.remove('show');
-  const until = Date.now()+COOLDOWN_MS;
+  const fails=parseInt(sessionStorage.getItem('ds_t5_fails')||'0');
+  const until = Date.now()+cooldownMsForFails(fails);
   sessionStorage.setItem('ds_t5_cooldown_until', String(until));
   showCooldown();
 }
