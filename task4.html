@@ -118,6 +118,11 @@ body{display:flex;flex-direction:column;}
 .explain-lang-chip.active{border-color:var(--g3);background:var(--g6);color:var(--g1);}
 .review-list{width:100%;max-width:440px;display:flex;flex-direction:column;gap:10px;margin-bottom:20px;}
 .review-item{background:var(--white);border:1.5px solid var(--border);border-radius:14px;padding:14px;text-align:left;}
+.wrong-header{background:#FEE2E2;border:1.5px solid var(--danger);border-radius:14px;padding:14px;font-size:16px;font-weight:900;color:#991B1B;text-align:center;margin-bottom:6px;line-height:1.5;}
+.wrong-header-zh{font-size:14px;font-weight:700;color:#B91C1C;}
+.wrong-opts{display:flex;flex-direction:column;gap:6px;margin-top:8px;}
+.wrong-opt{padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-weight:700;color:var(--text);background:var(--g7);}
+.wrong-opt.picked{border-color:var(--danger);background:#FEE2E2;color:#991B1B;font-weight:800;}
 .review-item.correct{border-left:5px solid var(--g4);}
 .review-item.wrong{border-left:5px solid var(--danger);}
 .review-q{font-size:14px;font-weight:800;color:var(--text);margin-bottom:6px;}
@@ -409,6 +414,7 @@ function onNext(){
   answers.push({word:q.word,question:q.question,
     picked:q.options[selectedOption].text,
     correct:q.options.find(o=>o.correct).text,
+    options:q.options.map(o=>o.text),
     isCorrect});
   // Move on
   if(currentQ<questions.length-1){showQuestion(currentQ+1);}
@@ -448,12 +454,12 @@ function showResult(){
     renderWordIdSummary();
     renderReview();
   } else {
-    // Not passed → DON'T reveal which questions were right/wrong or the answers.
-    // Just encourage a retry. (Stops students from memorising answers.)
+    // Not passed → show ONLY the questions they got wrong, with their wrong choice marked,
+    // but WITHOUT revealing the correct answer (so they can't just memorise it).
     document.getElementById('resultScore').textContent='';
     const lb=document.getElementById('explainLangBar'); if(lb) lb.innerHTML='';
     const ws=document.getElementById('wordidSummary'); if(ws) ws.innerHTML='';
-    const rv=document.getElementById('reviewList'); if(rv) rv.innerHTML='';
+    renderWrongOnly();
   }
 
   const btns=document.getElementById('resultBtns');btns.innerHTML='';
@@ -479,10 +485,11 @@ function showResult(){
 
 // Wait grows with fails: 2nd=2.5min, 3rd=5min, 4th=7.5min, 5th+=10min
 function cooldownMsForFails(fails){
-  if(fails>=5) return 10*60*1000;
-  if(fails===4) return 7.5*60*1000;
-  if(fails===3) return 5*60*1000;
-  return 2.5*60*1000; // 2nd fail
+  if(fails>=6) return 10*60*1000;
+  if(fails===5) return 8*60*1000;
+  if(fails===4) return 6*60*1000;
+  if(fails===3) return 4*60*1000;
+  return 2*60*1000; // 2nd fail
 }
 
 // ===== Anti-rushing cooldown + unlock question (3rd fail onwards) =====
@@ -595,6 +602,32 @@ function buildExplainLangBar(){
     chip.onclick=()=>{explainLang=code;document.querySelectorAll('.explain-lang-chip').forEach(c=>c.classList.toggle('active',c.dataset.code===explainLang));renderReview();};
     bar.appendChild(chip);
   });
+}
+
+// Show ONLY wrong questions, with the student's wrong pick marked, correct answer HIDDEN.
+function renderWrongOnly(){
+  const list=document.getElementById('reviewList');list.innerHTML='';
+  const wrong=answers.filter(a=>!a.isCorrect);
+  // Bilingual header
+  const header=document.createElement('div');
+  header.className='wrong-header';
+  header.innerHTML='❌ These are the questions you got wrong.<br><span class="wrong-header-zh">这些是你做错的题目。再试一次！</span>';
+  list.appendChild(header);
+  wrong.forEach((a,i)=>{
+    const item=document.createElement('div');
+    item.className='review-item wrong';
+    let html=`<div class="review-q">${i+1}. ${a.question}</div>`;
+    // Show all options; mark ONLY the student's wrong pick. Do NOT reveal the correct one.
+    html+='<div class="wrong-opts">';
+    (a.options||[]).forEach(opt=>{
+      const isPicked = opt===a.picked;
+      html+=`<div class="wrong-opt${isPicked?' picked':''}">${isPicked?'👉 ':''}${opt}${isPicked?' ❌':''}</div>`;
+    });
+    html+='</div>';
+    item.innerHTML=html;
+    list.appendChild(item);
+  });
+  if(!wrong.length){ list.innerHTML=''; }
 }
 
 function renderReview(){
