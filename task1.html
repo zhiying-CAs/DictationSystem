@@ -917,9 +917,22 @@ function getNextTask(){
     {id:'T4',name:'Mind Check',emoji:'🧠'},
     {id:'T5',name:'Word Detective',emoji:'🕵️'},
   ];
-  const order   = setup.task_order   || [0,1,2,3,4];
-  const enabled = setup.task_enabled || [true,true,true,true,true];
-  const t1pos   = order.indexOf(0);
+  // Normalise: task_order / task_enabled may arrive as arrays, comma strings, or be missing.
+  function toArr(v){
+    if(Array.isArray(v)) return v;
+    if(typeof v==='string' && v.trim()) return v.split(',').map(s=>s.trim());
+    return null;
+  }
+  let order = toArr(setup.task_order);
+  if(order){ order = order.map(v=>{ const n=parseInt(v); return n>5 ? n-1 : n; }); } // accept 1-based or 0-based
+  if(!order || !order.length) order = [0,1,2,3,4];
+
+  let enRaw = toArr(setup.task_enabled);
+  let enabled;
+  if(enRaw){ enabled = enRaw.map(v=> v===true || v==='1' || v==='true'); }
+  else { enabled = [true,false,true,true,true]; } // default: Word Hunt (T2) is OFF
+
+  const t1pos = order.indexOf(0);
   for(let i=t1pos+1; i<order.length; i++){
     const idx = order[i];
     if(enabled[idx]) return taskDefs[idx];
