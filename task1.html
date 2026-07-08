@@ -167,6 +167,7 @@ body{display:flex;flex-direction:column;}
 .result-btns{display:flex;flex-direction:column;gap:10px;width:100%;max-width:320px;}
 .result-btns button{padding:14px;border:none;border-radius:13px;font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;cursor:pointer;}
 .btn-next-task{background:linear-gradient(135deg,var(--g2),var(--g3));color:white;box-shadow:0 4px 16px rgba(45,125,45,0.3);}
+.btn-relisten{background:#E0E7FF;color:#3730A3;border:1.5px solid #6366F1;}
 .btn-stop{background:var(--g7);color:var(--muted);border:1.5px solid var(--border);}
 
 /* PAUSE indicator */
@@ -266,6 +267,7 @@ body{display:flex;flex-direction:column;}
     <div class="hint">📝 Write this down on your paper!</div>
   </div>
   <div class="result-btns">
+    <button class="btn-relisten" id="btnRelisten" onclick="relistenFromStart()">🔁 Listen again from word 1</button>
     <button class="btn-next-task" id="btnNextTask" onclick="goNextTask()">Continue to next task ➜</button>
     <button class="btn-stop" onclick="uOpenExit()">Stop here for today</button>
   </div>
@@ -896,6 +898,15 @@ function showResult(){
   const btnNext  = document.getElementById('btnNextTask');
   if(nextTask){ btnNext.textContent = 'Continue to ' + nextTask.name + ' ' + nextTask.emoji; }
   else { btnNext.style.display='none'; }
+}
+
+// Student chose to listen again — restart the SAME Task 1 workflow from word 1.
+function relistenFromStart(){
+  if(autoTimer){ clearTimeout(autoTimer); autoTimer=null; }
+  document.getElementById('resultScreen').classList.remove('show');
+  currentIdx = 0;
+  currentRepeat = 0;
+  showWord(0);   // same original flow: shows word 1, student listens & spells again
 }
 
 function getNextTask(){
