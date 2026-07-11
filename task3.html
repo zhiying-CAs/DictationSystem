@@ -464,8 +464,17 @@ let reviveTarget=null;
 let waitTimer=null,waitSeconds=600;
 
 async function api(p, keepalive){const q=new URLSearchParams(p).toString();const r=await fetch(API+'?'+q, keepalive?{keepalive:true}:undefined);return r.json();}
-function showLoading(t){document.getElementById('overlayText').textContent=t||'...';document.getElementById('overlay').classList.add('show');}
-function hideLoading(){document.getElementById('overlay').classList.remove('show');}
+var _loadMsgTimer=null;
+const _LOAD_MSGS=['Setting up Pair Drop... 🎯','Loading word partners... 🔗','Almost ready... ✨','Just a moment... 🌱'];
+function showLoading(t){
+  const el=document.getElementById('overlayText');
+  el.textContent=t||'...';
+  document.getElementById('overlay').classList.add('show');
+  if(_loadMsgTimer)clearInterval(_loadMsgTimer);
+  let i=0;
+  _loadMsgTimer=setInterval(()=>{ i=(i+1)%_LOAD_MSGS.length; el.textContent=_LOAD_MSGS[i]; },1600);
+}
+function hideLoading(){ if(_loadMsgTimer){clearInterval(_loadMsgTimer);_loadMsgTimer=null;} document.getElementById('overlay').classList.remove('show'); }
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 
 // ============ AUDIO (game sounds) ============

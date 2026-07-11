@@ -379,8 +379,24 @@ let taskOrder   = [0,1,2,3,4]; // indices into TASKS array
 })();
 
 async function api(p){ const q=new URLSearchParams(p).toString(); const r=await fetch(API+'?'+q); return r.json(); }
-function showLoading(t){ document.getElementById('overlayText').textContent=t||'Loading...'; document.getElementById('overlay').classList.add('show'); }
-function hideLoading(){ document.getElementById('overlay').classList.remove('show'); }
+var _loadMsgTimer=null;
+const _LOAD_MSGS=[
+  'Getting your words ready... 📚',
+  'Loading word partners... 🔗',
+  'Almost there... ✨',
+  'Setting up your session... 🌱',
+  'Just a moment... ⏳'
+];
+function showLoading(t){
+  const el=document.getElementById('overlayText');
+  el.textContent=t||'Loading...';
+  document.getElementById('overlay').classList.add('show');
+  // Rotate friendly messages so the wait doesn't feel frozen
+  if(_loadMsgTimer)clearInterval(_loadMsgTimer);
+  let i=0;
+  _loadMsgTimer=setInterval(()=>{ i=(i+1)%_LOAD_MSGS.length; el.textContent=_LOAD_MSGS[i]; },1600);
+}
+function hideLoading(){ if(_loadMsgTimer){clearInterval(_loadMsgTimer);_loadMsgTimer=null;} document.getElementById('overlay').classList.remove('show'); }
 function showMsg(text,type){ const el=document.getElementById('msgMain'); el.textContent=text; el.className='msg '+type; }
 function clearMsg(){ document.getElementById('msgMain').className='msg'; }
 
@@ -853,6 +869,25 @@ async function startSession(){
       return;
     }
 
+    // Pre-fetch collocation rows NOW (in parallel with saveRecord) so Task 3/4/5
+    // can start instantly without waiting for the backend again.
+    const collocPromise = api({action:'getWords',series,level,
+      unit_from:from,unit_to:to,half:'all',mode:'all'})
+      .then(r=> (r && r.success) ? r.data : null)
+      .catch(()=>null);
+
+    // Build the word-range string shown in Records, e.g. "1-50".
+    // When a range was picked use it; otherwise it's 1 → total words in the selection.
+    let wrFrom, wrTo;
+    if(rangeMode==='range'){
+      wrFrom = parseInt(document.getElementById('rangeFrom').value)||1;
+      wrTo   = parseInt(document.getElementById('rangeTo').value)||task1Words.length;
+    } else {
+      wrFrom = 1;
+      wrTo   = task1Words.length;
+    }
+    const wordRange = wrFrom + '-' + wrTo;
+
     const res = await api({
       action:       'saveRecord',
       student_id:   student.student_id||'',
@@ -864,8 +899,29 @@ async function startSession(){
       unit_to:      to,
       half:         'all',
       task:         'T1',
+      word_range:   wordRange,
       status:       'in_progress'
     });
+
+    // Build Task 3/4/5's word-partner cache from the pre-fetched rows (no extra wait for them later)
+    try{
+      const allRows = await collocPromise;
+      if(allRows && allRows.length){
+        const t1set = new Set(task1Words.map(w=>String(w.word).toLowerCase().trim()));
+        const eligible = allRows.filter(r=>r.collocations && r.collocations.trim() && t1set.has(String(r.word).toLowerCase().trim()));
+        // one random collocation per word
+        const byWord={};
+        eligible.forEach(w=>{const k=String(w.word).toLowerCase().trim();(byWord[k]=byWord[k]||[]).push(w);});
+        let partners=Object.values(byWord).map(rows=>rows[Math.floor(Math.random()*rows.length)]);
+        for(let i=partners.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[partners[i],partners[j]]=[partners[j],partners[i]];}
+        const nP = parseInt(task3Colloc)||20;
+        const chosen = partners.slice(0, Math.min(nP, partners.length));
+        if(chosen.length){
+          sessionStorage.setItem('ds_session_words', JSON.stringify(chosen));
+          sessionStorage.setItem('ds_session_word_ids', chosen.map(w=>w.word_id).join(','));
+        }
+      }
+    }catch(e){ /* if pre-fetch fails, Task 3 will fetch on its own — no harm */ }
 
     if(res.success){
       sessionStorage.setItem('ds_record_id', res.record_id);

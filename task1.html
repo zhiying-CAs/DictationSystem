@@ -607,8 +607,17 @@ function unlockAudio(){
 
 // ---- API ----
 async function api(p){ const q=new URLSearchParams(p).toString(); const r=await fetch(API+'?'+q); return r.json(); }
-function showLoading(t){ document.getElementById('overlayText').textContent=t||'Loading...'; document.getElementById('overlay').classList.add('show'); }
-function hideLoading(){ document.getElementById('overlay').classList.remove('show'); }
+var _loadMsgTimer=null;
+const _LOAD_MSGS=['Getting your words ready... 📚','Loading... ✨','Almost there... 🌱','Just a moment... ⏳'];
+function showLoading(t){
+  const el=document.getElementById('overlayText');
+  el.textContent=t||'Loading...';
+  document.getElementById('overlay').classList.add('show');
+  if(_loadMsgTimer)clearInterval(_loadMsgTimer);
+  let i=0;
+  _loadMsgTimer=setInterval(()=>{ i=(i+1)%_LOAD_MSGS.length; el.textContent=_LOAD_MSGS[i]; },1600);
+}
+function hideLoading(){ if(_loadMsgTimer){clearInterval(_loadMsgTimer);_loadMsgTimer=null;} document.getElementById('overlay').classList.remove('show'); }
 
 // ---- Show word ----
 function showWord(idx){
