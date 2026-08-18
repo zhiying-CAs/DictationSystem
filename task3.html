@@ -146,6 +146,27 @@ body{display:flex;flex-direction:column;}
 .sort-chip.shake{animation:shakeX 0.4s;}
 @keyframes shakeX{0%,100%{transform:translateX(0);}25%{transform:translateX(-6px);}75%{transform:translateX(6px);}}
 .game-area{flex:1;position:relative;background:linear-gradient(180deg,#F8FCF4,#FFFFFF);border:2px solid var(--border);border-radius:14px;overflow:hidden;min-height:0;box-shadow:inset 0 2px 16px rgba(0,0,0,0.05);}
+/* Instruction screen (8 sec) */
+.instr-overlay{position:fixed;inset:0;background:linear-gradient(160deg,var(--g1),var(--g3));z-index:185;display:none;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;gap:10px;}
+.instr-overlay.show{display:flex;}
+.instr-emoji{font-size:64px;margin-bottom:6px;}
+.instr-title-en{font-size:26px;font-weight:900;color:white;}
+.instr-title-zh{font-size:22px;font-weight:800;color:#DCEDC8;margin-bottom:8px;}
+.instr-sub-en{font-size:15px;font-weight:700;color:white;max-width:420px;}
+.instr-sub-zh{font-size:14px;font-weight:600;color:#C8E6C9;max-width:420px;}
+.instr-count{margin-top:18px;font-size:52px;font-weight:900;color:#FFD54F;}
+/* Answer row — correct words fly here */
+.answer-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center;min-height:56px;padding:10px;margin:6px 0;background:var(--g7);border:2px dashed var(--g4);border-radius:14px;}
+.answer-tile{padding:12px 20px;border-radius:14px;font-size:20px;font-weight:800;background:linear-gradient(135deg,var(--g2),var(--g3));color:white;box-shadow:0 3px 10px rgba(45,125,45,0.3);animation:flyIn 0.35s cubic-bezier(0.2,0.8,0.3,1.2);}
+@keyframes flyIn{from{transform:translateY(-40px) scale(0.6);opacity:0;}to{transform:translateY(0) scale(1);opacity:1;}}
+.answer-placeholder{color:var(--muted);font-size:15px;font-weight:700;}
+/* Static tile grid */
+.tiles-area{flex:1;display:flex;flex-wrap:wrap;gap:12px;justify-content:center;align-content:center;padding:16px;overflow-y:auto;min-height:0;}
+.word-tile{padding:16px 26px;border-radius:16px;font-size:22px;font-weight:800;cursor:pointer;background:var(--white);color:var(--g1);border:2px solid var(--g4);box-shadow:0 4px 12px rgba(0,0,0,0.12);transition:transform 0.1s;user-select:none;}
+.word-tile:active{transform:scale(0.94);}
+.word-tile.used{opacity:0;pointer-events:none;transform:scale(0.5);transition:all 0.3s;}
+.word-tile.wrong{animation:tileShake 0.4s;border-color:var(--danger);background:#FEE2E2;}
+@keyframes tileShake{0%,100%{transform:translateX(0);}25%{transform:translateX(-8px);}75%{transform:translateX(8px);}}
 .falling-word{position:absolute;padding:14px 24px;border-radius:18px;font-size:21px;font-weight:800;cursor:pointer;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,0.18);transition:transform 0.1s;border:2px solid var(--g4);background:var(--white);color:var(--g1);}
 .falling-word:active{transform:scale(0.92);}
 .falling-word.caught-correct{animation:catchGood 0.4s ease forwards;}
@@ -375,6 +396,16 @@ body{display:flex;flex-direction:column;}
   </div>
 
   <!-- PHASE 2: Game -->
+  <!-- 8-second instruction screen (shown once, after handover PIN) -->
+  <div class="instr-overlay" id="instrOverlay">
+    <div class="instr-emoji">👆</div>
+    <div class="instr-title-en">Tap the words in the correct order</div>
+    <div class="instr-title-zh">按照正确的次序点击文字</div>
+    <div class="instr-sub-en">Read the meaning at the top, then tap each word to build the phrase.</div>
+    <div class="instr-sub-zh">看上方的意思，然后按次序点出这个搭配。</div>
+    <div class="instr-count" id="instrCount">8</div>
+  </div>
+
   <div class="game-phase" id="gamePhase">
     <div class="game-hud">
       <div class="lives" id="lives"></div>
@@ -382,20 +413,14 @@ body{display:flex;flex-direction:column;}
       <div class="game-timer" id="gameTimer">10:00</div>
     </div>
     <div class="target-display">
-      <div class="target-label" id="targetLabel">Catch all the words for</div>
+      <div class="target-label" id="targetLabel">Tap the words in order for</div>
       <div class="target-word" id="targetWord">—</div>
-      <div class="target-hint" id="targetHint">Tap the correctly-spelled words! ✨</div>
-      <div class="target-progress" id="targetProgress"></div>
+      <div class="target-hint" id="targetHint">Tap them in the correct order 👆</div>
     </div>
-    <div class="game-area" id="gameArea"></div>
-    <!-- Countdown shown before words start dropping -->
-    <div class="drop-countdown" id="dropCountdown" style="display:none"></div>
-    <!-- Drag-to-order panel, shown after all correct words are caught -->
-    <div class="sort-panel" id="sortPanel" style="display:none">
-      <div class="sort-title">Now drag the words into the correct order 👇</div>
-      <div class="sort-slots" id="sortSlots"></div>
-      <button class="sort-check-btn" id="sortCheckBtn" onclick="checkSortOrder()">Check my order ✓</button>
-    </div>
+    <!-- Answer row: correct words fly here as they are tapped -->
+    <div class="answer-row" id="answerRow"></div>
+    <!-- Static word tiles the student taps -->
+    <div class="tiles-area" id="tilesArea"></div>
   </div>
   </div>
 </div>
@@ -793,6 +818,23 @@ async function verifyStudyPin(){
 
 function startGame(){
   document.getElementById('flashcardPhase').style.display='none';
+  // Show the 8-second instruction screen ONCE, then begin the game
+  const instr=document.getElementById('instrOverlay');
+  instr.classList.add('show');
+  let c=8;
+  document.getElementById('instrCount').textContent=c;
+  const it=setInterval(()=>{
+    c--;
+    if(c<=0){
+      clearInterval(it);
+      instr.classList.remove('show');
+      beginGamePlay();
+    } else {
+      document.getElementById('instrCount').textContent=c;
+    }
+  },1000);
+}
+function beginGamePlay(){
   document.getElementById('gamePhase').classList.add('show');
   buildLives();
   currentTargetIdx=0;score=0;
@@ -839,6 +881,36 @@ function renderCaughtProgress(){
   }
 }
 
+// ===== STATIC TAP-IN-ORDER GAME =====
+let seqIndex=0;          // which position in seqWords the student must tap next
+
+function buildDistractorTiles(target){
+  // Correct sequence = the collocation split into words
+  const seq = target.collocations.trim().split(/\s+/);
+  // Distractor pool = the MCQ options (correct + 3 wrong), split into single words.
+  const mcqTexts = [target.mcq_correct, target.mcq_wrong1, target.mcq_wrong2, target.mcq_wrong3]
+    .filter(t=>t && t.trim());
+  const pool = new Set();
+  mcqTexts.forEach(t => t.trim().split(/\s+/).forEach(w => pool.add(w)));
+  // Remove the correct-sequence words from the distractor pool (we add those separately)
+  seq.forEach(w => pool.delete(w));
+  // Tiles = every correct word (each needed once, in order) + all distractor words, de-duplicated & shuffled
+  const distractors = Array.from(pool);
+  const tiles = seq.concat(distractors);
+  // de-dupe while keeping one of each text (correct words may repeat legitimately e.g. "as ... as")
+  // Build count of needed correct words so duplicates in seq are preserved
+  const need = {};
+  seq.forEach(w => need[w] = (need[w]||0)+1);
+  const finalTiles = [];
+  const usedDistract = new Set();
+  // add correct words by needed count
+  Object.keys(need).forEach(w => { for(let i=0;i<need[w];i++) finalTiles.push(w); });
+  // add distractors not already a correct word
+  distractors.forEach(w => { if(!(w in need) && !usedDistract.has(w)){ finalTiles.push(w); usedDistract.add(w); } });
+  shuffle(finalTiles);
+  return {seq, tiles: finalTiles};
+}
+
 function nextTarget(){
   if(currentTargetIdx>=gameWords.length){endGame(true);return;}
   document.getElementById('gameProgress').textContent=`${currentTargetIdx+1} / ${gameWords.length}`;
@@ -846,269 +918,62 @@ function nextTarget(){
 
   // Top: show the MEANING (in chosen language)
   document.getElementById('targetWord').textContent=getTargetMeaning(target);
-  document.getElementById('targetLabel').textContent='Catch all the words for';
-  document.getElementById('targetHint').textContent='Tap the correctly-spelled words! ✨';
+  document.getElementById('targetLabel').textContent='Tap the words in order for';
+  document.getElementById('targetHint').textContent='Tap them in the correct order 👆';
 
-  // Split the collocation into its words (correct order kept for the sort step)
-  seqWords = target.collocations.trim().split(/\s+/);
-  caughtWords = [];
-  dropRound = 0;
-  renderCaughtProgress();
+  const built = buildDistractorTiles(target);
+  seqWords = built.seq;      // correct order
+  seqIndex = 0;              // next position to tap
 
-  // Clear any leftover falling words / sort panel
-  const area=document.getElementById('gameArea');
-  area.querySelectorAll('.falling-word').forEach(el=>el.remove());
-  document.getElementById('sortPanel').style.display='none';
+  // Clear answer row + render placeholder
+  const answer=document.getElementById('answerRow');
+  answer.innerHTML='<span class="answer-placeholder">Tap the words below 👇</span>';
 
-  // Show meaning for 3 seconds (countdown), THEN start dropping
-  let count=3;
-  const cd=document.getElementById('dropCountdown');
-  cd.style.display='block';
-  cd.textContent=count;
-  const cdTimer=setInterval(()=>{
-    count--;
-    if(count<=0){
-      clearInterval(cdTimer);
-      cd.style.display='none';
-      if(gameActive) startDropping(target);
-    } else {
-      cd.textContent=count;
+  // Render the static tiles
+  const area=document.getElementById('tilesArea');
+  area.innerHTML='';
+  built.tiles.forEach(word=>{
+    const tile=document.createElement('div');
+    tile.className='word-tile';
+    tile.textContent=word;
+    tile.onclick=()=>tapTile(tile, word);
+    area.appendChild(tile);
+  });
+}
+
+function tapTile(tile, word){
+  if(!gameActive || tile.classList.contains('used')) return;
+  const expected = seqWords[seqIndex];
+  if(word === expected){
+    // Correct word in correct position → fly it to the answer row
+    tile.classList.add('used');
+    const answer=document.getElementById('answerRow');
+    if(seqIndex===0) answer.innerHTML=''; // clear placeholder on first correct tap
+    const at=document.createElement('div');
+    at.className='answer-tile';
+    at.textContent=word;
+    answer.appendChild(at);
+    sndCorrect();
+    seqIndex++;
+    if(seqIndex>=seqWords.length){
+      // Whole phrase done → score and move on
+      spawnConfetti();
+      score++;
+      setTimeout(()=>{ currentTargetIdx++; if(gameActive) nextTarget(); }, 600);
     }
-  },1000);
-}
-
-function startDropping(target){
-  dropRound++;   // this is round 1, 2, ...
-  // Build falling options based on how many of each word are STILL needed
-  // (count-based, so duplicate words like "as ... as" work correctly).
-  const needed = wordsStillNeeded();   // e.g. ['as','as','snow'] if one 'as' already caught
-  const options=[];
-  // Drop one tile per still-needed word (collapse duplicates to one tile each visually,
-  // but allow catching it multiple times via the count check in catchWord)
-  const uniqueNeeded=[...new Set(needed)];
-  uniqueNeeded.forEach(word=>{
-    options.push({text:word, correct:true});
-  });
-  const usedTexts=new Set(uniqueNeeded.map(w=>w.toLowerCase()));
-  uniqueNeeded.forEach(word=>{
-    const bad=misspell(word);
-    if(!usedTexts.has(bad.toLowerCase())){
-      options.push({text:bad, correct:false});
-      usedTexts.add(bad.toLowerCase());
-    }
-  });
-  shuffle(options);
-  dropWords(options);
-}
-
-// How many of each correct word still need catching (accounts for duplicates)
-function wordsStillNeeded(){
-  const need={};
-  seqWords.forEach(w=>{ need[w]=(need[w]||0)+1; });
-  caughtWords.forEach(w=>{ if(need[w]) need[w]--; });
-  const out=[];
-  Object.keys(need).forEach(w=>{ for(let i=0;i<need[w];i++) out.push(w); });
-  return out;
-}
-
-function dropWords(options){
-  const area=document.getElementById('gameArea');
-  area.querySelectorAll('.falling-word').forEach(el=>el.remove());
-  fallingWords=[];
-  if(fallRAF)cancelAnimationFrame(fallRAF);
-  const areaW=area.clientWidth;
-  const lanes=options.length;
-  options.forEach((opt,i)=>{
-    const el=document.createElement('div');
-    el.className='falling-word';
-    el.textContent=opt.text;
-    el.style.top='-50px';
-    area.appendChild(el);
-    const elW=el.offsetWidth;
-    const maxX=Math.max(4,areaW-elW-4);
-    const x=Math.min(maxX,Math.max(4,(areaW/(lanes+1))*(i+1)-elW/2+(Math.random()*30-15)));
-    el.style.left=x+'px';
-    const fw={el,opt,y:-50-(i*90),speed:0.35+Math.random()*0.2,caught:false};
-    el.onclick=()=>catchWord(fw);
-    fallingWords.push(fw);
-  });
-  animateFall();
-}
-
-function animateFall(){
-  const area=document.getElementById('gameArea');
-  const areaH=area.clientHeight;
-  fallingWords.forEach(fw=>{
-    if(fw.caught)return;
-    fw.y+=fw.speed*2.0;
-    fw.el.style.top=fw.y+'px';
-    if(fw.y>areaH){
-      fw.caught=true;fw.el.remove();
-    }
-  });
-  if(gameActive && fallingWords.some(fw=>!fw.caught)){
-    fallRAF=requestAnimationFrame(animateFall);
-    return;
-  }
-  fallRAF=null;
-  // All words for this round have fallen / been caught
-  if(!gameActive) return;
-  if(caughtWords.length>=seqWords.length) return; // all caught → handled in catchWord
-
-  // Not all correct words caught yet
-  if(dropRound<2){
-    // Give a second round — drop the remaining words again, no penalty
-    setTimeout(()=>{ if(gameActive) startDropping(gameWords[currentTargetIdx]); },300);
   } else {
-    // After 2 rounds and still missing words → lose a life, then restart the SAME target
-    const target=gameWords[currentTargetIdx];
-    if(!failedPairs.find(f=>f.word_id===target.word_id))failedPairs.push(target);
-    loseLife();
-    if(gameActive){ setTimeout(()=>{ if(gameActive) nextTarget(); },400); }
-  }
-}
-
-function catchWord(fw){
-  if(fw.caught||!gameActive)return;
-
-  // Wrong word (misspelled distractor) → lose a life
-  if(!fw.opt.correct){
-    fw.caught=true;
-    fw.el.classList.add('caught-wrong');sndWrong();loseLife();
-    const target=gameWords[currentTargetIdx];
-    if(!failedPairs.find(f=>f.word_id===target.word_id))failedPairs.push(target);
-    setTimeout(()=>fw.el.remove(),400);
-    return;
-  }
-
-  // Correct word — only accept if this word is still needed (handles duplicates by count)
-  const need = wordsStillNeeded();
-  if(!need.includes(fw.opt.text)){ return; } // this word is already fully caught
-
-  fw.caught=true;
-  fw.el.classList.add('caught-correct');sndCorrect();
-  caughtWords.push(fw.opt.text);
-  renderCaughtProgress();
-
-  if(caughtWords.length>=seqWords.length){
-    // All words caught → go to drag-sort step
-    if(fallRAF)cancelAnimationFrame(fallRAF);
-    fallingWords.forEach(f=>{if(!f.caught){f.caught=true;f.el.remove();}});
-    setTimeout(()=>{ if(gameActive) showSortPanel(); },350);
-  } else if(wordsStillNeeded().includes(fw.opt.text)){
-    // Another copy of THIS word is still needed (e.g. second "as") → drop it again quickly
-    const word=fw.opt.text;
-    setTimeout(()=>{
-      if(!gameActive) return;
-      // spawn one more falling tile of this word + a distractor, without penalty
-      const opts=[{text:word,correct:true}];
-      const bad=misspell(word);
-      opts.push({text:bad,correct:false});
-      shuffle(opts);
-      // add these to the current falling set instead of clearing
-      addFallingTiles(opts);
-    },250);
-  }
-}
-
-// Add extra falling tiles to the current round (used when a duplicate word is still needed)
-function addFallingTiles(options){
-  const area=document.getElementById('gameArea');
-  const areaW=area.clientWidth;
-  options.forEach((opt,i)=>{
-    const el=document.createElement('div');
-    el.className='falling-word';
-    el.textContent=opt.text;
-    el.style.top='-50px';
-    area.appendChild(el);
-    const elW=el.offsetWidth;
-    const maxX=Math.max(4,areaW-elW-4);
-    const x=Math.min(maxX,Math.max(4,(areaW/(options.length+1))*(i+1)-elW/2+(Math.random()*40-20)));
-    el.style.left=x+'px';
-    const fw={el,opt,y:-50-(i*70),speed:0.35+Math.random()*0.2,caught:false};
-    el.onclick=()=>catchWord(fw);
-    fallingWords.push(fw);
-  });
-  if(!fallRAF) animateFall();
-}
-
-// ===== Drag-to-order step =====
-function showSortPanel(){
-  const panel=document.getElementById('sortPanel');
-  const slots=document.getElementById('sortSlots');
-  slots.innerHTML='';
-  // Present the caught words SHUFFLED so the student must arrange them
-  const shuffled=caughtWords.slice();
-  // ensure not already in correct order (shuffle until different if possible)
-  if(shuffled.length>1){
-    let tries=0;
-    do{ shuffle(shuffled); tries++; }while(shuffled.join(' ')===seqWords.join(' ') && tries<10);
-  }
-  shuffled.forEach(word=>{
-    const chip=document.createElement('div');
-    chip.className='sort-chip';
-    chip.textContent=word;
-    chip.draggable=true;
-    addDragHandlers(chip);
-    slots.appendChild(chip);
-  });
-  panel.style.display='flex';
-}
-
-let dragSrc=null;
-function addDragHandlers(chip){
-  // Desktop drag
-  chip.addEventListener('dragstart',e=>{dragSrc=chip;chip.classList.add('dragging');});
-  chip.addEventListener('dragend',e=>{chip.classList.remove('dragging');document.querySelectorAll('.sort-chip').forEach(c=>c.classList.remove('drag-over'));});
-  chip.addEventListener('dragover',e=>{e.preventDefault();chip.classList.add('drag-over');});
-  chip.addEventListener('dragleave',e=>{chip.classList.remove('drag-over');});
-  chip.addEventListener('drop',e=>{e.preventDefault();chip.classList.remove('drag-over');if(dragSrc&&dragSrc!==chip)swapChips(dragSrc,chip);});
-  // Touch drag (mobile)
-  chip.addEventListener('touchstart',e=>{dragSrc=chip;chip.classList.add('dragging');},{passive:true});
-  chip.addEventListener('touchmove',e=>{
-    e.preventDefault();
-    const t=e.touches[0];
-    const under=document.elementFromPoint(t.clientX,t.clientY);
-    document.querySelectorAll('.sort-chip').forEach(c=>c.classList.remove('drag-over'));
-    if(under&&under.classList.contains('sort-chip')&&under!==dragSrc)under.classList.add('drag-over');
-  },{passive:false});
-  chip.addEventListener('touchend',e=>{
-    const t=e.changedTouches[0];
-    const under=document.elementFromPoint(t.clientX,t.clientY);
-    chip.classList.remove('dragging');
-    document.querySelectorAll('.sort-chip').forEach(c=>c.classList.remove('drag-over'));
-    if(under&&under.classList.contains('sort-chip')&&under!==dragSrc)swapChips(dragSrc,under);
-  });
-}
-function swapChips(a,b){
-  const slots=document.getElementById('sortSlots');
-  const chips=Array.from(slots.children);
-  const ia=chips.indexOf(a), ib=chips.indexOf(b);
-  if(ia<0||ib<0)return;
-  if(ia<ib) slots.insertBefore(a,b.nextSibling);
-  else slots.insertBefore(a,b);
-}
-
-function checkSortOrder(){
-  const slots=document.getElementById('sortSlots');
-  const current=Array.from(slots.children).map(c=>c.textContent);
-  if(current.join(' ')===seqWords.join(' ')){
-    // Correct order!
-    spawnConfetti();sndCorrect();score++;
-    document.getElementById('sortPanel').style.display='none';
-    setTimeout(()=>{currentTargetIdx++;if(gameActive)nextTarget();},500);
-  } else {
-    // Wrong order → lose a life, let them try again (same question)
+    // Wrong word OR wrong order → lose a life, but they can keep tapping (no restart)
     sndWrong();
-    Array.from(slots.children).forEach(c=>{c.classList.add('shake');setTimeout(()=>c.classList.remove('shake'),400);});
+    tile.classList.add('wrong');
+    setTimeout(()=>tile.classList.remove('wrong'),400);
     const target=gameWords[currentTargetIdx];
     if(!failedPairs.find(f=>f.word_id===target.word_id))failedPairs.push(target);
     loseLife();
-    // If still alive, they keep trying the same arrangement
   }
 }
 
-function loseLife(){lives--;buildLives();if(lives<=0){gameActive=false;stopTenseMusic();if(fallRAF)cancelAnimationFrame(fallRAF);clearInterval(gameTimer);document.getElementById('sortPanel').style.display='none';showReviveModal();}}
+
+function loseLife(){lives--;buildLives();if(lives<=0){gameActive=false;stopTenseMusic();clearInterval(gameTimer);showReviveModal();}}
 
 function spawnConfetti(){const wrap=document.getElementById('confettiWrap');const colors=['#4A9A3A','#6AAF45','#F59E0B','#3B82F6','#EC4899'];for(let i=0;i<25;i++){const p=document.createElement('div');p.className='confetti-piece';p.style.cssText=`left:${Math.random()*100}%;background:${colors[Math.floor(Math.random()*colors.length)]};width:${5+Math.random()*6}px;height:${5+Math.random()*6}px;--dur:${1.2+Math.random()*1.5}s;--delay:0s;`;wrap.appendChild(p);setTimeout(()=>p.remove(),2800);}}
 
@@ -1163,7 +1028,7 @@ function startWaitTimer(waitEnd){
 
 // ============ END ============
 function endGame(passed,reason){
-  gameActive=false;stopTenseMusic();if(fallRAF)cancelAnimationFrame(fallRAF);clearInterval(gameTimer);
+  gameActive=false;stopTenseMusic();clearInterval(gameTimer);
   // Attempts = failed tries + this one. Track fails across reloads via sessionStorage.
   let t3Attempts;
   if(passed){
