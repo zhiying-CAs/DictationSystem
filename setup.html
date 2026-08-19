@@ -253,7 +253,7 @@ html,body{min-height:100vh;min-height:100dvh;font-family:'Nunito',sans-serif;bac
         </div>
 
         <div class="field">
-          <label>Pair Drop / Mind Check / Word Detective — number of Word Partners</label>
+          <label>Word Partners / Mind Check / Word Detective — number of Word Partners</label>
           <select id="numCollocations" onchange="onCollocChange()">
             <option value="20" selected>20 (default)</option>
             <option value="auto" id="collocAutoOpt" style="display:none">— words</option>
@@ -349,7 +349,7 @@ let wordCount = 0;
 const TASKS = [
   { id:'T1', name:'Spell Storm',   emoji:'⚡', mandatory:true  },
   { id:'T2', name:'Word Hunt',     emoji:'🔍', mandatory:false },
-  { id:'T3', name:'Pair Drop',     emoji:'🎯', mandatory:false },
+  { id:'T3', name:'Word Partners', emoji:'🔗', mandatory:false },
   { id:'T4', name:'Mind Check',    emoji:'🧠', mandatory:false },
   { id:'T5', name:'Word Detective',emoji:'🕵️', mandatory:false },
 ];
@@ -748,7 +748,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 
 // Friendly name of the next task to continue to (for the button label)
 function nextTaskLabelFromStatus(status){
-  const names={0:'Spell Storm',1:'Word Hunt',2:'Pair Drop',3:'Mind Check',4:'Word Detective'};
+  const names={0:'Spell Storm',1:'Word Hunt',2:'Word Partners',3:'Mind Check',4:'Word Detective'};
   const page=nextTaskPageFromStatus(status);
   const idx={'task1.html':0,'task2.html':1,'task3.html':2,'task4.html':3,'task5.html':4}[page];
   return names[idx]||'next task';

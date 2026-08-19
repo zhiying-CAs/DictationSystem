@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
-<title>Pair Drop 🎯</title>
+<title>Word Partners 🔗</title>
 <style>
 /* === Kiosk / full-screen lockdown (for Jamf Single App Mode) === */
 *{
@@ -296,7 +296,7 @@ body{display:flex;flex-direction:column;}
 <body>
 <div class="bg-blobs"><div class="blob blob1"></div><div class="blob blob2"></div></div>
 <div class="confetti-wrap" id="confettiWrap"></div>
-<div class="overlay" id="overlay"><div class="spinner"></div><div class="overlay-text" id="overlayText">Setting up Pair Drop...</div></div>
+<div class="overlay" id="overlay"><div class="spinner"></div><div class="overlay-text" id="overlayText">Setting up Word Partners...</div></div>
 
 <!-- Exit FAB -->
 
@@ -345,7 +345,7 @@ body{display:flex;flex-direction:column;}
 
 <div class="main">
   <div class="info-bar">
-    <div class="badge-pill">🎯 Pair Drop</div>
+    <div class="badge-pill">🔗 Word Partners</div>
   </div>
 
   <div class="content-area">
@@ -391,7 +391,7 @@ body{display:flex;flex-direction:column;}
     <div class="handover-pin-label">Teacher PIN 老师密码</div>
     <input type="password" class="handover-pin" id="handoverPin" placeholder="••••••" maxlength="10" inputmode="numeric"
       onkeydown="if(event.key==='Enter')verifyHandoverPin()">
-    <button class="handover-btn" onclick="verifyHandoverPin()">Start Pair Drop 🎯</button>
+    <button class="handover-btn" onclick="verifyHandoverPin()">Start Word Partners 🔗</button>
     <div class="handover-err" id="handoverErr" style="display:none">Wrong PIN. Try again. 密码错误，请重试。</div>
   </div>
 
@@ -490,7 +490,7 @@ let waitTimer=null,waitSeconds=600;
 
 async function api(p, keepalive){const q=new URLSearchParams(p).toString();const r=await fetch(API+'?'+q, keepalive?{keepalive:true}:undefined);return r.json();}
 var _loadMsgTimer=null;
-const _LOAD_MSGS=['Setting up Pair Drop... 🎯','Loading word partners... 🔗','Almost ready... ✨','Just a moment... 🌱'];
+const _LOAD_MSGS=['Setting up Word Partners... 🔗','Loading your words... 📚','Almost ready... ✨','Just a moment... 🌱'];
 function showLoading(t){
   const el=document.getElementById('overlayText');
   el.textContent=t||'...';
@@ -567,7 +567,7 @@ function webSpeak(text,btn){
 
 // ============ INIT ============
 (async function(){
-  showLoading('Setting up Pair Drop...');
+  showLoading('Setting up Word Partners...');
   student=JSON.parse(sessionStorage.getItem('ds_student')||'{}');
   setup=JSON.parse(sessionStorage.getItem('ds_setup')||'{}');
   config=JSON.parse(sessionStorage.getItem('ds_config')||'{}');
