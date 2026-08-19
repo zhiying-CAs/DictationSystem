@@ -336,6 +336,23 @@ function sndWin(){[523,587,659,698,784,880,988,1047].forEach((f,i)=>tone(f,0.14,
     }
   }
 
+  // ===== Draw a fixed set of quiz questions (max 12) shared by Task 4 & 5 =====
+  // First task to run picks 12 random from the session words (the 20) and caches them.
+  // Both tasks + all "Try again" retries then reuse the SAME 12 (stored in ds_quiz_words).
+  let quizWords=[];
+  const quizStored=sessionStorage.getItem('ds_quiz_words');
+  if(quizStored){try{quizWords=JSON.parse(quizStored);}catch(e){quizWords=[];}}
+  // Validate the cache still matches the current session words (guard against stale data)
+  const sessIds=new Set(sessionWords.map(w=>w.word_id));
+  const cacheValid = quizWords.length && quizWords.every(w=>sessIds.has(w.word_id));
+  if(!cacheValid){
+    const pool=sessionWords.slice();
+    shuffle(pool);
+    quizWords=pool.slice(0, Math.min(12, pool.length));   // 12, or fewer if not enough
+    sessionStorage.setItem('ds_quiz_words', JSON.stringify(quizWords));
+  }
+  sessionWords = quizWords;   // Task 4 now only tests these (max 12)
+
   // Build questions from rows that have MCQ
   questions=sessionWords.filter(w=>w.mcq_question&&w.mcq_question.trim()).map(w=>{
     const opts=[

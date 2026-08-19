@@ -887,25 +887,20 @@ let seqIndex=0;          // which position in seqWords the student must tap next
 function buildDistractorTiles(target){
   // Correct sequence = the collocation split into words
   const seq = target.collocations.trim().split(/\s+/);
-  // Distractor pool = the MCQ options (correct + 3 wrong), split into single words.
-  const mcqTexts = [target.mcq_correct, target.mcq_wrong1, target.mcq_wrong2, target.mcq_wrong3]
+  // Distractor pool = ONLY mcq_correct + mcq_wrong1 (kept small so basic students can cope).
+  const mcqTexts = [target.mcq_correct, target.mcq_wrong1]
     .filter(t=>t && t.trim());
   const pool = new Set();
   mcqTexts.forEach(t => t.trim().split(/\s+/).forEach(w => pool.add(w)));
   // Remove the correct-sequence words from the distractor pool (we add those separately)
   seq.forEach(w => pool.delete(w));
-  // Tiles = every correct word (each needed once, in order) + all distractor words, de-duplicated & shuffled
   const distractors = Array.from(pool);
-  const tiles = seq.concat(distractors);
-  // de-dupe while keeping one of each text (correct words may repeat legitimately e.g. "as ... as")
-  // Build count of needed correct words so duplicates in seq are preserved
+  // Build count of needed correct words so duplicates in seq are preserved (e.g. "as ... as")
   const need = {};
   seq.forEach(w => need[w] = (need[w]||0)+1);
   const finalTiles = [];
   const usedDistract = new Set();
-  // add correct words by needed count
   Object.keys(need).forEach(w => { for(let i=0;i<need[w];i++) finalTiles.push(w); });
-  // add distractors not already a correct word
   distractors.forEach(w => { if(!(w in need) && !usedDistract.has(w)){ finalTiles.push(w); usedDistract.add(w); } });
   shuffle(finalTiles);
   return {seq, tiles: finalTiles};

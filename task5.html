@@ -360,6 +360,20 @@ function sndWin(){[523,587,659,698,784,880,988,1047].forEach((f,i)=>tone(f,0.14,
     }
   }
 
+  // ===== Reuse the SAME 12 quiz questions as Task 4 (shared, retry-stable) =====
+  let quizWords=[];
+  const quizStored=sessionStorage.getItem('ds_quiz_words');
+  if(quizStored){try{quizWords=JSON.parse(quizStored);}catch(e){quizWords=[];}}
+  const sessIds=new Set(sessionWords.map(w=>w.word_id));
+  const cacheValid = quizWords.length && quizWords.every(w=>sessIds.has(w.word_id));
+  if(!cacheValid){
+    const pool=sessionWords.slice();
+    shuffle(pool);
+    quizWords=pool.slice(0, Math.min(12, pool.length));
+    sessionStorage.setItem('ds_quiz_words', JSON.stringify(quizWords));
+  }
+  sessionWords = quizWords;
+
   // Build questions from rows that have passage + qns + synonym options
   questions=sessionWords.filter(w=>w.short_passage&&w.short_passage.trim()&&w.qns&&w.qns.trim()).map(w=>{
     const opts=[
