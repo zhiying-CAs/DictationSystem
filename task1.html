@@ -22,7 +22,7 @@ input,textarea,select{
 }
 /* Hide scrollbars everywhere but keep scrolling working */
 *::-webkit-scrollbar{width:0;height:0;display:none;}
-html,body{-ms-overflow-style:none;scrollbar-width:none;}
+html,body{-ms-overflow-style:none;scrollbar-width:none;overscroll-behavior:none;overscroll-behavior-x:none;}
 /* (scroll-blocking rules removed — scrolling must work normally on phones too) */
 
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
@@ -999,6 +999,22 @@ function shuffle(arr){
 // ---- Lock navigation ----
 history.pushState(null,'',location.href);
 window.addEventListener('popstate',()=>history.pushState(null,'',location.href));
+// Block iOS edge-swipe (swipe from screen edge = browser "back/forward").
+// Only cancels a HORIZONTAL drag that begins near the edge; normal taps still work.
+(function(){
+  let sx=0, sy=0, edge=false;
+  document.addEventListener('touchstart', function(e){
+    if(e.touches && e.touches.length===1){
+      sx=e.touches[0].pageX; sy=e.touches[0].pageY;
+      edge = (sx < 28 || sx > (window.innerWidth - 28));
+    } else { edge=false; }
+  }, {passive:true});
+  document.addEventListener('touchmove', function(e){
+    if(!edge || !e.touches || e.touches.length!==1) return;
+    const dx=e.touches[0].pageX - sx, dy=e.touches[0].pageY - sy;
+    if(Math.abs(dx) > Math.abs(dy)){ e.preventDefault(); }  // horizontal swipe from edge → block
+  }, {passive:false});
+})();
 </script>
 
 <div class="u-exit-choice" id="uExitChoice">

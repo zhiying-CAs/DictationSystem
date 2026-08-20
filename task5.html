@@ -22,7 +22,7 @@ input,textarea,select{
 }
 /* Hide scrollbars everywhere but keep scrolling working */
 *::-webkit-scrollbar{width:0;height:0;display:none;}
-html,body{-ms-overflow-style:none;scrollbar-width:none;}
+html,body{-ms-overflow-style:none;scrollbar-width:none;overscroll-behavior:none;overscroll-behavior-x:none;}
 /* (scroll-blocking rules removed — scrolling must work normally on phones too) */
 
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
@@ -369,7 +369,8 @@ function sndWin(){[523,587,659,698,784,880,988,1047].forEach((f,i)=>tone(f,0.14,
   if(!cacheValid){
     const pool=sessionWords.slice();
     shuffle(pool);
-    quizWords=pool.slice(0, Math.min(12, pool.length));
+    const quizN = parseInt(config.quiz_question_count) || 15;   // set in Config sheet; default 15
+    quizWords=pool.slice(0, Math.min(quizN, pool.length));
     sessionStorage.setItem('ds_quiz_words', JSON.stringify(quizWords));
   }
   sessionWords = quizWords;
@@ -909,6 +910,22 @@ async function uPauseExit(){
 
 history.pushState(null,'',location.href);
 window.addEventListener('popstate',()=>history.pushState(null,'',location.href));
+// Block iOS edge-swipe (swipe from screen edge = browser "back/forward").
+// Only cancels a HORIZONTAL drag that begins near the edge; normal taps still work.
+(function(){
+  let sx=0, sy=0, edge=false;
+  document.addEventListener('touchstart', function(e){
+    if(e.touches && e.touches.length===1){
+      sx=e.touches[0].pageX; sy=e.touches[0].pageY;
+      edge = (sx < 28 || sx > (window.innerWidth - 28));
+    } else { edge=false; }
+  }, {passive:true});
+  document.addEventListener('touchmove', function(e){
+    if(!edge || !e.touches || e.touches.length!==1) return;
+    const dx=e.touches[0].pageX - sx, dy=e.touches[0].pageY - sy;
+    if(Math.abs(dx) > Math.abs(dy)){ e.preventDefault(); }  // horizontal swipe from edge → block
+  }, {passive:false});
+})();
 </script>
 <script>
 /* === GLOBAL CLICK SPROUT EFFECT 🌱 + sound === */
