@@ -253,7 +253,7 @@ html,body{min-height:100vh;min-height:100dvh;font-family:'Nunito',sans-serif;bac
         </div>
 
         <div class="field">
-          <label>Word Partners / Mind Check / Word Detective — number of Word Partners</label>
+          <label>Word Partners — number to practise</label>
           <select id="numCollocations" onchange="onCollocChange()">
             <option value="20" selected>20 (default)</option>
             <option value="auto" id="collocAutoOpt" style="display:none">— words</option>
@@ -262,6 +262,17 @@ html,body{min-height:100vh;min-height:100dvh;font-family:'Nunito',sans-serif;bac
           <input type="number" id="numCollocCustom" min="1" max="200" placeholder="e.g. 10"
             style="display:none;margin-top:8px;width:100%;padding:10px;border:1.5px solid var(--border);border-radius:10px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;" onchange="validateColloc()">
           <div id="collocWarn" style="display:none;font-size:12px;font-weight:700;color:#92400E;background:var(--amber-bg,#FEF3C7);border:1.5px solid var(--amber,#F59E0B);border-radius:10px;padding:8px 12px;margin-top:8px;"></div>
+        </div>
+
+        <div class="field">
+          <label>Mind Check / Word Detective — number of questions</label>
+          <select id="numQuiz" onchange="onQuizChange()">
+            <option value="15" selected>15 (default)</option>
+            <option value="custom">Custom number</option>
+          </select>
+          <input type="number" id="numQuizCustom" min="1" max="200" placeholder="e.g. 10"
+            style="display:none;margin-top:8px;width:100%;padding:10px;border:1.5px solid var(--border);border-radius:10px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;">
+          <div style="font-size:12px;font-weight:600;color:var(--muted);margin-top:6px;">Randomly picked from the Word Partners above. If fewer exist, all are used.</div>
         </div>
 
         <script>
@@ -557,6 +568,10 @@ function onCollocChange(){
   document.getElementById('numCollocCustom').style.display = (sel==='custom')?'block':'none';
   validateColloc();
 }
+function onQuizChange(){
+  const sel=document.getElementById('numQuiz').value;
+  document.getElementById('numQuizCustom').style.display = (sel==='custom')?'block':'none';
+}
 function validateColloc(){
   // Word Partners cannot exceed Task 1 word count
   const warn=document.getElementById('collocWarn');
@@ -793,6 +808,14 @@ async function startSession(){
   } else {
     task3Colloc = parseInt(collocSel) || 20;
   }
+  // Task 4/5 number of questions (drawn from the Word Partners above)
+  let quizCount = 15;
+  const quizSel = document.getElementById('numQuiz').value;
+  if(quizSel==='custom'){
+    quizCount = parseInt(document.getElementById('numQuizCustom').value) || 15;
+  } else {
+    quizCount = parseInt(quizSel) || 15;
+  }
   let passMark = document.getElementById('passMark').value || 'auto';
   if(passMark==='custom'){
     const pc=parseInt(document.getElementById('passMarkCustom').value);
@@ -841,6 +864,7 @@ async function startSession(){
     word_order:      order,
     repeat_count:    repeat,
     task3_collocations: task3Colloc,
+    quiz_count:         quizCount,
     pass_mark:          passMark,
     num_words:       numWords,
     task_enabled:    taskEnabled,

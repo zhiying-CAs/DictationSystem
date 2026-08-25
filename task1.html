@@ -997,8 +997,13 @@ function shuffle(arr){
 }
 
 // ---- Lock navigation ----
-history.pushState(null,'',location.href);
-window.addEventListener('popstate',()=>history.pushState(null,'',location.href));
+// Strong history lock: push MULTIPLE states so an edge-swipe "back" just lands on this same page.
+for(let i=0;i<10;i++){ history.pushState({lock:i},'',location.href); }
+window.addEventListener('popstate', function(e){
+  // Immediately re-push so the user can never leave this page via back/swipe
+  history.pushState({lock:Date.now()},'',location.href);
+  history.pushState({lock:Date.now()+1},'',location.href);
+});
 // Block iOS edge-swipe (swipe from screen edge = browser "back/forward").
 // Only cancels a HORIZONTAL drag that begins near the edge; normal taps still work.
 (function(){
@@ -1006,7 +1011,7 @@ window.addEventListener('popstate',()=>history.pushState(null,'',location.href))
   document.addEventListener('touchstart', function(e){
     if(e.touches && e.touches.length===1){
       sx=e.touches[0].pageX; sy=e.touches[0].pageY;
-      edge = (sx < 28 || sx > (window.innerWidth - 28));
+      edge = (sx < 44 || sx > (window.innerWidth - 44));
     } else { edge=false; }
   }, {passive:true});
   document.addEventListener('touchmove', function(e){
