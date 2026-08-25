@@ -443,10 +443,10 @@ function onNext(){
 function showResult(){
   const total=questions.length;
   const pct=Math.round(score/total*100);
-  // Pass mark: from teacher setting (auto=75%, a number=that many correct, 0=no limit)
+  // Pass mark: from teacher setting (auto=85%, a number=that many correct, 0=no limit)
   let passScore;
   const pm = setup.pass_mark || 'auto';
-  if(pm==='auto'){ passScore=Math.ceil(total*0.75); }
+  if(pm==='auto'){ passScore=Math.ceil(total*0.85); }
   else if(pm==='0'||pm===0){ passScore=0; }
   else { passScore=Math.min(parseInt(pm), total); } // never require more than total
   const passed=score>=passScore;
