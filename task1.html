@@ -670,7 +670,18 @@ function showWord(idx){
 
   // Nav buttons
   document.getElementById('btnPrev').disabled = (idx === 0);
-  document.getElementById('btnNext').disabled = (idx === words.length - 1);
+  // Next stays enabled on the last word so the student can finish the task themselves.
+  document.getElementById('btnNext').disabled = false;
+  // On the final word, relabel Next → Finish
+  const bnLabel = document.querySelector('#btnNext .label');
+  const bnIcon  = document.querySelector('#btnNext .icon');
+  if(idx === words.length - 1){
+    if(bnLabel) bnLabel.textContent = 'Finish';
+    if(bnIcon)  bnIcon.textContent  = '🏁';
+  } else {
+    if(bnLabel) bnLabel.textContent = 'Next';
+    if(bnIcon)  bnIcon.textContent  = '⏭';
+  }
 
   // Card animation
   const card = document.getElementById('wordCard');
@@ -756,23 +767,9 @@ async function playWordCycle(){
     // Wait 1.5s then play again
     autoTimer = setTimeout(()=> playWordCycle(), 1500);
   } else {
-    // All repeats done — wait 2.5s then auto-advance
+    // All 3 reads done — STOP. Student decides: replay 🔊, next ▶, or previous ◀.
     const tap = document.querySelector('.tap-hint');
-    if(tap){
-      let countdown = 3;
-      tap.textContent = `✅ Next word in ${countdown}s...`;
-      const iv = setInterval(()=>{
-        countdown--;
-        if(countdown > 0) tap.textContent = `✅ Next word in ${countdown}s...`;
-        else { clearInterval(iv); }
-      }, 1000);
-    }
-    autoTimer = setTimeout(()=>{
-      if(!isPaused){
-        if(currentIdx < words.length - 1) nextWord();
-        else showResult();
-      }
-    }, 2500);
+    if(tap) tap.textContent = '✅ Tap ▶ Next, ◀ Prev, or 🔊 to listen again';
   }
 }
 
