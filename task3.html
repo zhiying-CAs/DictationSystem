@@ -645,6 +645,29 @@ function webSpeak(text,btn){
   sessionStorage.setItem('ds_session_word_ids', gameWords.map(w=>w.word_id).join(','));
   sessionStorage.setItem('ds_session_words', JSON.stringify(gameWords));
 
+  // If the student is in the middle of the 10-minute wait (page may have reloaded on the iPad),
+  // resume the wait directly — do NOT show flashcards again (no re-doing cards / re-entering PIN).
+  const waitEnd = parseInt(sessionStorage.getItem('ds_t3_wait_end')||'0');
+  if(waitEnd){
+    document.getElementById('flashcardPhase').style.display='none';
+    document.getElementById('gamePhase').classList.add('show');
+    buildLives(); score=0; currentTargetIdx=0;
+    hideLoading();
+    if(Date.now() < waitEnd){
+      // Still waiting → show the countdown and continue it
+      document.getElementById('waitingScreen').classList.add('show');
+      startWaitTimer(waitEnd);
+    } else {
+      // Wait already finished while reloaded → start the game fresh (no flashcards, no PIN)
+      sessionStorage.removeItem('ds_t3_wait_end');
+      lives=maxLives; buildLives();
+      gameSeconds=(parseInt(config.task3_timeout_minutes)||10)*60;
+      gameActive=true; startGameTimer(); startTenseMusic(); nextTarget();
+    }
+    document.addEventListener('touchstart',()=>{try{getCtx().resume();}catch(e){}},{once:true});
+    return;
+  }
+
   // Make sure the flashcard phase is actually visible, then show the first card
   document.getElementById('flashcardPhase').style.display='grid';
   document.getElementById('gamePhase').classList.remove('show');
@@ -847,7 +870,7 @@ function startGameTimer(){if(gameTimer)clearInterval(gameTimer);updateTimerDispl
 function updateTimerDisplay(){const m=Math.floor(gameSeconds/60),s=gameSeconds%60;document.getElementById('gameTimer').textContent=`${m}:${String(s).padStart(2,'0')}`;}
 
 // State for the current target
-let seqWords=[];        // collocation split into words, in CORRECT order: ['summer','holiday']
+var seqWords=[];        // collocation split into words, in CORRECT order: ['summer','holiday']
 let caughtWords=[];     // correct words the student has caught so far (any order)
 let dropRound=0;        // how many drop rounds have happened for this target (max 2, then penalty)
 
@@ -882,7 +905,7 @@ function renderCaughtProgress(){
 }
 
 // ===== STATIC TAP-IN-ORDER GAME =====
-let seqIndex=0;          // which position in seqWords the student must tap next
+var seqIndex=0;          // which position in seqWords the student must tap next
 
 function buildDistractorTiles(target){
   // Correct sequence = the collocation split into words
