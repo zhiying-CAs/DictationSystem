@@ -305,7 +305,7 @@ body{display:flex;flex-direction:column;}
     <div class="word-num" id="wordNum">Word 1</div>
 
     <button class="speaker-btn" id="speakerBtn" onclick="playCurrentWord()">🔊</button>
-    <div class="tap-hint">Tap to hear the word again</div>
+    <div class="tap-hint" id="tapHint"></div>
 
     <!-- Definition (shown if teacher enabled) -->
     <div class="def-area" id="defArea" style="display:none">
@@ -333,8 +333,8 @@ body{display:flex;flex-direction:column;}
     <button class="ctrl-btn" id="btnPrev" onclick="prevWord()">
       <span class="icon">⏮</span><span class="label">Prev</span>
     </button>
-    <button class="ctrl-btn ctrl-main" id="btnPause" onclick="togglePause()">
-      <span class="icon" id="pauseIcon">⏸</span><span class="label" id="pauseLabel" style="color:white">Pause</span>
+    <button class="ctrl-btn ctrl-main" id="btnReplay" onclick="playCurrentWord()">
+      <span class="icon">🔊</span><span class="label" style="color:white">Listen again</span>
     </button>
     <button class="ctrl-btn" id="btnNext" onclick="nextWord()">
       <span class="icon">⏭</span><span class="label">Next</span>
@@ -767,9 +767,9 @@ async function playWordCycle(){
     // Wait 1.5s then play again
     autoTimer = setTimeout(()=> playWordCycle(), 1500);
   } else {
-    // All 3 reads done — STOP. Student decides: replay 🔊, next ▶, or previous ◀.
+    // All 3 reads done — STOP. Student uses the buttons below. Keep it clean (no text).
     const tap = document.querySelector('.tap-hint');
-    if(tap) tap.textContent = '✅ Tap ▶ Next, ◀ Prev, or 🔊 to listen again';
+    if(tap) tap.textContent = '';
   }
 }
 
