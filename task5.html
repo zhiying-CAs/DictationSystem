@@ -6,6 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap">
 <title>Word Detective 🕵️</title>
 <style>
 /* === Kiosk / full-screen lockdown (for Jamf Single App Mode) === */
@@ -25,7 +28,6 @@ input,textarea,select{
 html,body{-ms-overflow-style:none;scrollbar-width:none;overscroll-behavior:none;overscroll-behavior-x:none;}
 /* (scroll-blocking rules removed — scrolling must work normally on phones too) */
 
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 :root{
   --g1:#1E5C1E;--g2:#2D7D2D;--g3:#4A9A3A;--g4:#6AAF45;--g5:#8DC63F;--g6:#C5E8A0;--g7:#EAF7D8;
   --white:#FFFFFF;--text:#1A3A1A;--muted:#5A7A5A;--border:#C8E6B0;
@@ -624,7 +626,7 @@ function showResult(){
     score:score+'/'+total,
     wrong_words:answers.filter(a=>!a.isCorrect).map(a=>a.word.word_id).join(','),
     task5_results:answers.map(a=>a.word.word_id+':'+(a.isCorrect?'1':'0')).join(' '),
-    ...(passed?{task5_attempts:t5Attempts}:{}),
+    ...(passed?{task5_attempts:t5Attempts, done_task:'4'}:{}),
     status:passed?'word_detective_done':'word_detective_failed'}, true);
 
   const ov=document.getElementById('resultOverlay');ov.classList.add('show');

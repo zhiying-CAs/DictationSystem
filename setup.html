@@ -6,6 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap">
 <title>Setup — Dictation System</title>
 <style>
 /* === Kiosk / full-screen lockdown (for Jamf Single App Mode) === */
@@ -25,7 +28,6 @@ input,textarea,select{
 html,body{-ms-overflow-style:none;scrollbar-width:none;}
 /* (scroll-blocking rules removed — scrolling must work normally on phones too) */
 
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 :root {
   --g1:#1E5C1E;--g2:#2D7D2D;--g3:#4A9A3A;--g4:#6AAF45;--g5:#8DC63F;--g6:#C5E8A0;--g7:#EAF7D8;
   --white:#FFFFFF;--text:#1A3A1A;--muted:#5A7A5A;--border:#C8E6B0;
@@ -348,13 +350,17 @@ html,body{min-height:100vh;min-height:100dvh;font-family:'Nunito',sans-serif;bac
 const API = 'https://script.google.com/macros/s/AKfycbw76QSB-lv4pA-6s_m6vNk_oGEdeLqrsqkoBGu6j-XMulb-maiAGkqqhfqqEmGfcbn3Ow/exec';
 
 let seriesLevels = [];
-let allUnits     = [];
-let resumeRecordId = '';   // set when resuming an existing session
-let resumeStatus   = '';   // that record's last status, to know which task to continue from
-let selectedHalf = 'all'; // deprecated, kept for resume compatibility
+let allUnits     = [];   // sorted unit list for the chosen level
+let levelRows    = [];   // ALL rows of the chosen level (incl. word partner rows)
+let primaryRows  = [];   // is_primary = yes rows (the Spell Storm words)
+const _levelCache = {};  // "series|level" → {units, rows}  (so switching back is instant)
+let resumeRecordId = ''; // only used for OLD session codes (made before Version 4)
+let resumeDone     = []; // tasks already finished (old codes: guessed from Status)
 let teacherUnlocked = false;
 let config = {};
 let wordCount = 0;
+let rangeMode = 'all';   // 'all' | 'range'
+let _selectedWords = []; // the exact words that will be tested (after range filter)
 
 // Task definitions
 const TASKS = [
@@ -364,12 +370,12 @@ const TASKS = [
   { id:'T4', name:'Mind Check',    emoji:'🧠', mandatory:false },
   { id:'T5', name:'Word Detective',emoji:'🕵️', mandatory:false },
 ];
+const TASK_PAGES = ['task1.html','task2.html','task3.html','task4.html','task5.html'];
 let taskEnabled = [true,true,true,true,true];
 let taskOrder   = [0,1,2,3,4]; // indices into TASKS array
 
 // ---- Init ----
 (function(){
-  // Leaves
   const c=document.getElementById('leaves');
   const em=['🍃','🌿','🍀','🌱'];
   for(let i=0;i<14;i++){
@@ -379,30 +385,28 @@ let taskOrder   = [0,1,2,3,4]; // indices into TASKS array
     l.style.cssText=`left:${Math.random()*100}%;--s:${s};--d:${(Math.random()*12+8).toFixed(1)}s;--delay:-${(Math.random()*12).toFixed(1)}s`;
     c.appendChild(l);
   }
-
-  // Student name
   const student = JSON.parse(sessionStorage.getItem('ds_student')||'{}');
   if(!student.name){ window.location.href='index.html'; return; }
   document.getElementById('studentName').textContent = student.name;
-
-  // Load config + series
   loadAll();
 })();
 
 async function api(p){ const q=new URLSearchParams(p).toString(); const r=await fetch(API+'?'+q); return r.json(); }
+// POST — for requests that carry a lot of data (saveRecord with resume data)
+async function apiPost(p){ const r=await fetch(API,{method:'POST',body:new URLSearchParams(p)}); return r.json(); }
+function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+// Server sends rows as compact arrays → turn them back into word objects
+function expandLevel(ld){
+  const cols=ld.cols||[];
+  return (ld.rows||[]).map(r=>{ const o={}; cols.forEach((c,i)=>{ o[c]=(r[i]===undefined||r[i]===null)?'':String(r[i]); }); return o; });
+}
+
 var _loadMsgTimer=null;
-const _LOAD_MSGS=[
-  'Getting your words ready... 📚',
-  'Loading word partners... 🔗',
-  'Almost there... ✨',
-  'Setting up your session... 🌱',
-  'Just a moment... ⏳'
-];
+const _LOAD_MSGS=['Getting your words ready... 📚','Loading word partners... 🔗','Almost there... ✨','Setting up your session... 🌱','Just a moment... ⏳'];
 function showLoading(t){
   const el=document.getElementById('overlayText');
   el.textContent=t||'Loading...';
   document.getElementById('overlay').classList.add('show');
-  // Rotate friendly messages so the wait doesn't feel frozen
   if(_loadMsgTimer)clearInterval(_loadMsgTimer);
   let i=0;
   _loadMsgTimer=setInterval(()=>{ i=(i+1)%_LOAD_MSGS.length; el.textContent=_LOAD_MSGS[i]; },1600);
@@ -414,59 +418,45 @@ function clearMsg(){ document.getElementById('msgMain').className='msg'; }
 async function loadAll(){
   showLoading('Loading word lists...');
   try {
-    // Use cached config if available (speeds up reload)
     const cachedConfig = sessionStorage.getItem('ds_config');
     const cachedSL     = sessionStorage.getItem('ds_series_levels');
-
     let cfgRes, slRes;
     if(cachedConfig && cachedSL){
       cfgRes = { success:true, data:JSON.parse(cachedConfig) };
       slRes  = { success:true, data:JSON.parse(cachedSL) };
     } else {
-      [cfgRes, slRes] = await Promise.all([
-        api({action:'getConfig'}),
-        api({action:'getSeriesLevels'})
-      ]);
-      if(cfgRes.success)  sessionStorage.setItem('ds_config', JSON.stringify(cfgRes.data));
-      if(slRes.success)   sessionStorage.setItem('ds_series_levels', JSON.stringify(slRes.data));
+      [cfgRes, slRes] = await Promise.all([ api({action:'getConfig'}), api({action:'getSeriesLevels'}) ]);
+      if(cfgRes.success) sessionStorage.setItem('ds_config', JSON.stringify(cfgRes.data));
+      if(slRes.success)  sessionStorage.setItem('ds_series_levels', JSON.stringify(slRes.data));
     }
 
     if(cfgRes.success){
       config = cfgRes.data;
       if(config.task_enabled){
-        const en = config.task_enabled.split(',');
-        taskEnabled = en.map(v=>v.trim()==='1');
+        taskEnabled = String(config.task_enabled).split(',').map(v=>v.trim()==='1');
       }
       if(config.task_order){
-        taskOrder = config.task_order.split(',').map(v=>parseInt(v.trim())-1);
+        taskOrder = String(config.task_order).split(',').map(v=>parseInt(v.trim())-1);
       }
       if(config.task1_show_definition_default){
         document.getElementById('showDefinition').value = config.task1_show_definition_default;
       }
     }
-
-    if(slRes.success){
-      seriesLevels = slRes.data;
-      populateSeries();
-    }
-
+    if(slRes.success){ seriesLevels = slRes.data; populateSeries(); }
     renderTaskOrder();
 
-    // Check resume
+    // Old session codes (made before Version 4) come through here
     const resume = JSON.parse(sessionStorage.getItem('ds_resume')||'null');
     if(resume){ await applyResume(resume); }
-
   } catch(e){ showMsg('Connection error. Please refresh.','error'); }
   hideLoading();
 }
 
 function populateSeries(){
   const sel = document.getElementById('selSeries');
-  const series = [...new Set(seriesLevels.map(s=>s.series))];
+  const series = [...new Set(seriesLevels.map(s=>String(s.series)))];
   sel.innerHTML = '<option value="">— Select series —</option>';
-  series.forEach(s=>{
-    const o=document.createElement('option'); o.value=s; o.textContent=s; sel.appendChild(o);
-  });
+  series.forEach(s=>{ const o=document.createElement('option'); o.value=s; o.textContent=s; sel.appendChild(o); });
 }
 
 function onSeriesChange(){
@@ -474,13 +464,10 @@ function onSeriesChange(){
   const levelSel = document.getElementById('selLevel');
   levelSel.innerHTML='<option value="">— Select level —</option>';
   levelSel.disabled = !series;
-
   if(!series){ resetUnits(); return; }
-
-  const levels = seriesLevels.filter(s=>s.series===series);
-  levels.forEach(l=>{
+  seriesLevels.filter(s=>String(s.series)===series).forEach(l=>{
     const o=document.createElement('option');
-    o.value=l.level; o.textContent=l.level;
+    o.value=String(l.level); o.textContent=String(l.level);
     if(!l.hasWords){ o.disabled=true; o.textContent+=' (coming soon)'; }
     levelSel.appendChild(o);
   });
@@ -488,33 +475,40 @@ function onSeriesChange(){
   resetUnits();
 }
 
+// ONE request per level: every row, the unit list and the word partners.
+// Everything after this (units, word count, word partners) is worked out on the iPad — no more waiting.
+async function loadLevel(series, level){
+  const key = series+'|'+level;
+  if(!_levelCache[key]){
+    const res = await api({action:'getLevelData', series, level});
+    if(!res.success) throw new Error(res.error||'Could not load words');
+    _levelCache[key] = { units:(res.units||[]).map(String), rows:expandLevel(res) };
+  }
+  const lv = _levelCache[key];
+  levelRows   = lv.rows;
+  primaryRows = lv.rows.filter(w=>String(w.is_primary).toLowerCase()==='yes');
+  allUnits    = lv.units.slice();
+}
+
 async function onLevelChange(){
   const series = document.getElementById('selSeries').value;
   const level  = document.getElementById('selLevel').value;
   resetUnits();
   if(!series||!level) return;
-
-  showLoading('Loading units...');
+  showLoading('Loading words...');
   try {
-    const res = await api({action:'getUnits', series, level});
-    if(res.success && res.data.length){
-      allUnits = res.data;
-      populateUnits();
-    } else {
-      showMsg('No words found for this level yet.','warn');
-    }
-  } catch(e){ showMsg('Connection error.','error'); }
+    await loadLevel(series, level);
+    if(allUnits.length) populateUnits();
+    else showMsg('No words found for this level yet.','warn');
+  } catch(e){ showMsg('Connection error. Please try again.','error'); }
   hideLoading();
 }
 
 function populateUnits(){
-  const from = document.getElementById('selUnitFrom');
-  const to   = document.getElementById('selUnitTo');
-  [from,to].forEach(sel=>{
+  ['selUnitFrom','selUnitTo'].forEach(id=>{
+    const sel=document.getElementById(id);
     sel.innerHTML='<option value="">—</option>';
-    allUnits.forEach(u=>{
-      const o=document.createElement('option'); o.value=u; o.textContent='Unit '+u; sel.appendChild(o);
-    });
+    allUnits.forEach(u=>{ const o=document.createElement('option'); o.value=u; o.textContent='Unit '+u; sel.appendChild(o); });
     sel.disabled=false;
   });
 }
@@ -527,10 +521,9 @@ function resetUnits(){
   document.getElementById('rangeField').style.display='none';
   document.getElementById('wordCount').style.display='none';
   document.getElementById('btnStart').disabled=true;
-  allUnits=[];
+  allUnits=[]; levelRows=[]; primaryRows=[]; _selectedWords=[]; wordCount=0;
 }
 
-let rangeMode='all'; // 'all' | 'range'
 function selectRangeMode(val, el){
   rangeMode=val;
   document.getElementById('rangeAllBtn').classList.toggle('selected', val==='all');
@@ -547,13 +540,9 @@ function syncNumWordsField(){
   const customInput = document.getElementById('numWordsCustom');
   const sameNote = document.getElementById('numWordsSameAsAbove');
   if(isRange){
-    sel.style.display='none';
-    customInput.style.display='none';
-    sameNote.style.display='block';
+    sel.style.display='none'; customInput.style.display='none'; sameNote.style.display='block';
   } else {
-    sel.style.display='block';
-    sameNote.style.display='none';
-    // restore custom input visibility if custom was selected
+    sel.style.display='block'; sameNote.style.display='none';
     customInput.style.display = (sel.value==='custom') ? 'block' : 'none';
   }
 }
@@ -562,7 +551,6 @@ function onPassMarkChange(){
   document.getElementById('passMarkCustom').style.display =
     (document.getElementById('passMark').value==='custom') ? 'block' : 'none';
 }
-
 function onCollocChange(){
   const sel=document.getElementById('numCollocations').value;
   document.getElementById('numCollocCustom').style.display = (sel==='custom')?'block':'none';
@@ -577,13 +565,9 @@ function validateColloc(){
   const warn=document.getElementById('collocWarn');
   const sel=document.getElementById('numCollocations').value;
   let want=0;
-  if(sel==='custom'){
-    want=parseInt(document.getElementById('numCollocCustom').value)||0;
-  } else if(sel==='auto'){
-    want=parseInt(document.getElementById('collocAutoOpt').dataset.auto)||Math.max(1,wordCount-2);
-  } else {
-    want=parseInt(sel)||0;  // e.g. 20
-  }
+  if(sel==='custom'){ want=parseInt(document.getElementById('numCollocCustom').value)||0; }
+  else if(sel==='auto'){ want=parseInt(document.getElementById('collocAutoOpt').dataset.auto)||Math.max(1,wordCount-2); }
+  else { want=parseInt(sel)||0; }
   if(want>0 && wordCount>0 && want>wordCount){
     warn.style.display='block';
     warn.textContent=`⚠️ Oops! You picked ${wordCount} words for Spell Storm, but asked for ${want} Word Partners. Word Partners can't be more than the words being tested. Please choose ${wordCount} or fewer. 😊`;
@@ -593,11 +577,9 @@ function validateColloc(){
   return true;
 }
 
-async function onUnitChange(){
+function onUnitChange(){
   const from = document.getElementById('selUnitFrom').value;
   const to   = document.getElementById('selUnitTo').value;
-  const series= document.getElementById('selSeries').value;
-  const level = document.getElementById('selLevel').value;
 
   // Word-range option ONLY for single unit. Cross-unit = All only.
   const rangeField = document.getElementById('rangeField');
@@ -612,70 +594,48 @@ async function onUnitChange(){
   }
   syncNumWordsField();
 
-  if(!from||!to||!series||!level){ document.getElementById('wordCount').style.display='none'; return; }
-
-  const fi=allUnits.indexOf(from), ti=allUnits.indexOf(to);
-  if(fi>ti){ showMsg('⚠️ "From" unit must come before "To" unit.','warn'); document.getElementById('wordCount').style.display='none'; return; }
+  if(!from||!to){ document.getElementById('wordCount').style.display='none'; return; }
+  if(allUnits.indexOf(from) > allUnits.indexOf(to)){
+    showMsg('⚠️ "From" unit must come before "To" unit.','warn');
+    document.getElementById('wordCount').style.display='none';
+    document.getElementById('btnStart').disabled=true;
+    return;
+  }
   clearMsg();
-
-  await updateWordCount();
+  updateWordCount();
 }
 
-let _wordCountCache = {};   // cache words per series|level
-let _wordCountDebounce = null;
-
-async function updateWordCount(){
-  const series= document.getElementById('selSeries').value;
-  const level = document.getElementById('selLevel').value;
-  const from  = document.getElementById('selUnitFrom').value;
-  const to    = document.getElementById('selUnitTo').value;
-  if(!series||!level||!from||!to) return;
-
-  // Debounce rapid changes
-  if(_wordCountDebounce) clearTimeout(_wordCountDebounce);
-  _wordCountDebounce = setTimeout(()=>doWordCount(series,level,from,to), 120);
+function validUnitSet(from,to){
+  const fi=allUnits.indexOf(String(from)), ti=allUnits.indexOf(String(to));
+  return new Set(allUnits.slice(fi>=0?fi:0, ti>=0?ti+1:allUnits.length));
 }
 
-let _selectedWords = [];  // the exact words that will be tested (after range filter)
+// Instant — no server call (words are already on the iPad)
+function updateWordCount(){
+  const from = document.getElementById('selUnitFrom').value;
+  const to   = document.getElementById('selUnitTo').value;
+  if(!from||!to||!primaryRows.length) return;
 
-async function doWordCount(series,level,from,to){
-  const cacheKey = series+'|'+level;
-  try {
-    if(!_wordCountCache[cacheKey]){
-      const res = await api({action:'getWords',series,level,unit_from:'__ALL__',unit_to:'__ALL__',half:'all',mode:'primary'});
-      _wordCountCache[cacheKey] = (res.success && res.data) ? res.data : [];
-    }
-    const all = _wordCountCache[cacheKey];
+  const valid = validUnitSet(from,to);
+  let inRange = primaryRows.filter(w=>valid.has(String(w.unit)));
 
-    // Build sorted unique unit list (same as backend)
-    const unitsSet=[]; const seen=new Set();
-    all.forEach(w=>{const u=String(w.unit);if(!seen.has(u)){seen.add(u);unitsSet.push(u);}});
-    unitsSet.sort((a,b)=>{const na=parseInt(a),nb=parseInt(b);if(!isNaN(na)&&!isNaN(nb))return na-nb;return a.localeCompare(b);});
+  // Word range filter (single unit only)
+  if(from===to && rangeMode==='range' && inRange.length>0){
+    let rf=parseInt(document.getElementById('rangeFrom').value)||1;
+    let rt=parseInt(document.getElementById('rangeTo').value)||inRange.length;
+    rf=Math.max(1,rf); rt=Math.min(inRange.length,rt);
+    if(rf<=rt){ inRange = inRange.slice(rf-1, rt); }
+  }
 
-    const fromIdx=unitsSet.indexOf(String(from));
-    const toIdx=unitsSet.indexOf(String(to));
-    const validUnits=new Set(unitsSet.slice(fromIdx>=0?fromIdx:0, toIdx>=0?toIdx+1:unitsSet.length));
-
-    let inRange = all.filter(w=>validUnits.has(String(w.unit)));
-
-    // Word range filter (single unit only)
-    if(String(from)===String(to) && rangeMode==='range' && inRange.length>0){
-      let rf=parseInt(document.getElementById('rangeFrom').value)||1;
-      let rt=parseInt(document.getElementById('rangeTo').value)||inRange.length;
-      rf=Math.max(1,rf); rt=Math.min(inRange.length,rt);
-      if(rf<=rt){ inRange = inRange.slice(rf-1, rt); }
-    }
-
-    _selectedWords = inRange;
-    wordCount = inRange.length;
-    document.getElementById('wordCountNum').textContent = wordCount;
-    document.getElementById('wordCount').style.display='flex';
-    document.getElementById('btnStart').disabled = wordCount===0;
-    if(wordCount===0) showMsg('No words found for this selection.','warn');
-    else clearMsg();
-    if(typeof refreshCollocOptions==='function') refreshCollocOptions();
-    if(typeof validateColloc==='function') validateColloc();
-  } catch(e){}
+  _selectedWords = inRange;
+  wordCount = inRange.length;
+  document.getElementById('wordCountNum').textContent = wordCount;
+  document.getElementById('wordCount').style.display='flex';
+  document.getElementById('btnStart').disabled = wordCount===0;
+  if(wordCount===0) showMsg('No words found for this selection.','warn');
+  else clearMsg();
+  if(typeof refreshCollocOptions==='function') refreshCollocOptions();
+  validateColloc();
 }
 
 // ---- Toggle teacher panel ----
@@ -714,16 +674,15 @@ function renderTaskOrder(){
   container.innerHTML='';
   taskOrder.forEach((taskIdx)=>{
     const task    = TASKS[taskIdx];
+    if(!task) return;
     const enabled = taskEnabled[taskIdx];
     const pill    = document.createElement('div');
     pill.className = 'task-pill'+(task.mandatory?' mandatory':enabled?' enabled':'');
     pill.dataset.taskIdx = taskIdx;
     pill.draggable = !task.mandatory;
     pill.innerHTML = `<span class="drag-handle">${task.mandatory?'🔒':'⠿'}</span><span>${task.emoji} ${task.name}</span><span class="toggle"></span>`;
-
     if(!task.mandatory){
       pill.onclick = ()=>toggleTask(taskIdx);
-      // Drag events
       pill.addEventListener('dragstart', e=>{ e.dataTransfer.setData('text/plain', taskIdx); pill.style.opacity='0.5'; });
       pill.addEventListener('dragend',   e=>{ pill.style.opacity='1'; });
       pill.addEventListener('dragover',  e=>{ e.preventDefault(); pill.style.borderColor='var(--g3)'; });
@@ -732,7 +691,6 @@ function renderTaskOrder(){
         e.preventDefault(); pill.style.borderColor='';
         const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
         const toIdx   = parseInt(pill.dataset.taskIdx);
-        // Don't allow dropping onto T1 (mandatory)
         if(toIdx === 0) return;
         const fi = taskOrder.indexOf(fromIdx);
         const ti = taskOrder.indexOf(toIdx);
@@ -745,7 +703,6 @@ function renderTaskOrder(){
     container.appendChild(pill);
   });
 }
-
 function toggleTask(taskIdx){
   if(!teacherUnlocked) return;
   taskEnabled[taskIdx] = !taskEnabled[taskIdx];
@@ -756,36 +713,31 @@ function toggleTask(taskIdx){
 document.addEventListener('DOMContentLoaded',()=>{
   const sel = document.getElementById('numWords');
   if(sel) sel.addEventListener('change',()=>{
-    document.getElementById('numWordsCustom').style.display =
-      sel.value==='custom' ? 'block' : 'none';
+    document.getElementById('numWordsCustom').style.display = sel.value==='custom' ? 'block' : 'none';
   });
 });
 
-// Friendly name of the next task to continue to (for the button label)
-function nextTaskLabelFromStatus(status){
-  const names={0:'Spell Storm',1:'Word Hunt',2:'Word Partners',3:'Mind Check',4:'Word Detective'};
-  const page=nextTaskPageFromStatus(status);
-  const idx={'task1.html':0,'task2.html':1,'task3.html':2,'task4.html':3,'task5.html':4}[page];
-  return names[idx]||'next task';
-}
-
-// Map a record's last status to which task page to continue from.
-// Tasks done (by status): spell_storm_done=T1, pair_drop_done=T3, mind_check_done=T4, word_detective_done=T5.
-// We pick the FIRST task in the configured order that isn't done yet.
-function nextTaskPageFromStatus(status){
-  const pages={0:'task1.html',1:'task2.html',2:'task3.html',3:'task4.html',4:'task5.html'};
-  // Which task indices are already complete?
-  const done=new Set();
-  if(/spell_storm_done|pair_drop|mind_check|word_detective|all_tasks_complete/.test(status)) done.add(0); // T1 done if we got past it
-  if(/pair_drop_done|all_tasks_complete/.test(status)) done.add(2);
-  if(/mind_check_done|all_tasks_complete/.test(status)) done.add(3);
-  if(/word_detective_done|all_tasks_complete/.test(status)) done.add(4);
-  const order = taskOrder && taskOrder.length ? taskOrder : [0,1,2,3,4];
-  const enabled = taskEnabled || [true,true,true,true,true];
-  for(const idx of order){
-    if(enabled[idx] && !done.has(idx) && pages[idx]) return pages[idx];
+// First task (in the configured order) that is enabled and not finished yet. -1 = all finished.
+// Word Hunt (T2) is not tracked for resume, so it is skipped.
+function nextTaskIndex(done, order, enabled){
+  const d = new Set((done||[]).map(Number));
+  const ord = (Array.isArray(order)&&order.length) ? order : [0,1,2,3,4];
+  const en  = Array.isArray(enabled) ? enabled : [true,true,true,true,true];
+  for(const idx of ord){
+    if(idx===1) continue;
+    if(en[idx] && !d.has(idx)) return idx;
   }
-  return 'task1.html'; // fallback
+  return -1;
+}
+// Old codes only: guess finished tasks from the Status text
+function doneFromStatus(st){
+  st = String(st||'').toLowerCase();
+  const d=[];
+  if(/spell_storm|pair_drop|mind_check|word_detective|all_tasks_complete/.test(st)) d.push(0);
+  if(/pair_drop_(done|skipped)|all_tasks_complete/.test(st)) d.push(2);
+  if(/mind_check_(done|skipped)|all_tasks_complete/.test(st)) d.push(3);
+  if(/word_detective_done|all_tasks_complete/.test(st)) d.push(4);
+  return d;
 }
 
 // ---- Start session ----
@@ -798,31 +750,25 @@ async function startSession(){
   const showDef = document.getElementById('showDefinition').value;
   const order   = document.getElementById('wordOrder').value;
   const repeat  = parseInt(document.getElementById('repeatCount').value) || 3;
+
   let task3Colloc = 20;
   const collocSel = document.getElementById('numCollocations').value;
-  if(collocSel==='custom'){
-    task3Colloc = parseInt(document.getElementById('numCollocCustom').value) || 20;
-  } else if(collocSel==='auto'){
-    // word range 19 or fewer → use (word count − 2)
-    task3Colloc = parseInt(document.getElementById('collocAutoOpt').dataset.auto) || Math.max(1, wordCount-2);
-  } else {
-    task3Colloc = parseInt(collocSel) || 20;
-  }
-  // Task 4/5 number of questions (drawn from the Word Partners above)
+  if(collocSel==='custom'){ task3Colloc = parseInt(document.getElementById('numCollocCustom').value) || 20; }
+  else if(collocSel==='auto'){ task3Colloc = parseInt(document.getElementById('collocAutoOpt').dataset.auto) || Math.max(1, wordCount-2); }
+  else { task3Colloc = parseInt(collocSel) || 20; }
+
   let quizCount = 15;
   const quizSel = document.getElementById('numQuiz').value;
-  if(quizSel==='custom'){
-    quizCount = parseInt(document.getElementById('numQuizCustom').value) || 15;
-  } else {
-    quizCount = parseInt(quizSel) || 15;
-  }
+  if(quizSel==='custom'){ quizCount = parseInt(document.getElementById('numQuizCustom').value) || 15; }
+  else { quizCount = parseInt(quizSel) || 15; }
+
   let passMark = document.getElementById('passMark').value || 'auto';
   if(passMark==='custom'){
     const pc=parseInt(document.getElementById('passMarkCustom').value);
     passMark = (!isNaN(pc)&&pc>0) ? String(pc) : 'auto';
   }
 
-  // Number of words — ignored when student picked a word range (range already limits words)
+  // Number of words — ignored when student picked a word range
   let numWords = 'all';
   if(rangeMode !== 'range'){
     const numSel = document.getElementById('numWords').value;
@@ -836,22 +782,32 @@ async function startSession(){
 
   if(!series||!level||!from||!to){ showMsg('Please complete all selections.','error'); return; }
   if(wordCount===0){ showMsg('No words found. Please change your selection.','error'); return; }
-  // Validate Word Partner count doesn't exceed word count
   if(!validateColloc()){ showMsg('Please fix the Word Partners number first.','error'); document.getElementById('teacherPanel').scrollIntoView({behavior:'smooth'}); return; }
 
-  // Build the EXACT Task 1 word list from the selection (already in _selectedWords)
+  // 1. Spell Storm words (the master list every task uses)
   let task1Words = _selectedWords.slice();
-  // Apply num_words limit
   if(numWords!=='all'){
     const n=parseInt(numWords);
     if(!isNaN(n)&&n>0&&n<task1Words.length) task1Words=task1Words.slice(0,n);
   }
-  // Apply order (random shuffles; sequential keeps sheet order)
-  if(order==='random'){
-    for(let i=task1Words.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[task1Words[i],task1Words[j]]=[task1Words[j],task1Words[i]];}
-  }
+  if(order==='random') shuffle(task1Words);
 
-  showLoading('Setting up your session...');
+  // 2. Word Partners: one random partner per Spell Storm word (same rule as before)
+  const validUnits = validUnitSet(from,to);
+  const t1set = new Set(task1Words.map(w=>String(w.word).toLowerCase().trim()));
+  const byWord = {};
+  levelRows.forEach(r=>{
+    if(!r.collocations || !validUnits.has(String(r.unit))) return;
+    const k=String(r.word).toLowerCase().trim();
+    if(!t1set.has(k)) return;
+    (byWord[k]=byWord[k]||[]).push(r);
+  });
+  let partners = Object.values(byWord).map(rows=>rows[Math.floor(Math.random()*rows.length)]);
+  shuffle(partners);
+  partners = partners.slice(0, Math.min(parseInt(task3Colloc)||20, partners.length));
+
+  // 3. Mind Check / Word Detective questions (picked from the Word Partners)
+  const quizWords = shuffle(partners.slice()).slice(0, Math.min(quizCount, partners.length));
 
   const setup = {
     series, level,
@@ -871,49 +827,52 @@ async function startSession(){
     task_order:      taskOrder,
     word_count:      task1Words.length
   };
-  sessionStorage.setItem('ds_setup', JSON.stringify(setup));
-  // KEY: save the exact Task 1 words (this is the master list all tasks inherit from)
-  sessionStorage.setItem('ds_task1_words', JSON.stringify(task1Words));
-  // Clear stale caches from previous sessions
-  sessionStorage.removeItem('ds_words');
-  sessionStorage.removeItem('ds_words_all');
-  sessionStorage.removeItem('ds_session_words');
-  sessionStorage.removeItem('ds_session_word_ids');
-  sessionStorage.removeItem('ds_quiz_words');
 
-  // Create record in sheet — UNLESS we're resuming an existing one
+  // Clear anything left over from an earlier session on this iPad
+  ['ds_words','ds_words_all','ds_task1_words','ds_session_words','ds_session_word_ids','ds_quiz_words',
+   'ds_display_mode','ds_t3_wait_end','ds_t3_study_end','ds_t3_fails','ds_t4_fails','ds_t5_fails',
+   'ds_t4_cooldown_until','ds_t5_cooldown_until','ds_resume'].forEach(k=>sessionStorage.removeItem(k));
+
+  sessionStorage.setItem('ds_setup', JSON.stringify(setup));
+  sessionStorage.setItem('ds_task1_words', JSON.stringify(task1Words));
+  sessionStorage.setItem('ds_words', JSON.stringify(task1Words));
+  if(partners.length){
+    sessionStorage.setItem('ds_session_words', JSON.stringify(partners));
+    sessionStorage.setItem('ds_session_word_ids', partners.map(w=>w.word_id).join(','));
+  }
+  if(quizWords.length) sessionStorage.setItem('ds_quiz_words', JSON.stringify(quizWords));
+
+  // Everything needed to rebuild this exact session later (saved in Records column T)
+  const resumeData = {
+    v: 2,
+    setup,
+    t1: task1Words.map(w=>w.word_id),
+    sp: partners.map(w=>w.word_id),
+    qz: quizWords.map(w=>w.word_id),
+    done: []
+  };
+
+  showLoading('Setting up your session...');
   try {
+    // OLD session code: keep the same record, save resume data into it, jump to the next task
     if(resumeRecordId){
-      // RESUME: reuse the existing record, jump to the next unfinished task.
-      // Downstream tasks (3/4/5) read ds_words — set it from the rebuilt Task 1 list.
+      resumeData.done = resumeDone.slice();
+      await apiPost({action:'updateRecord', record_id:resumeRecordId, resume_patch:JSON.stringify(resumeData)}).catch(()=>{});
       sessionStorage.setItem('ds_record_id', resumeRecordId);
-      sessionStorage.setItem('ds_words', JSON.stringify(task1Words));
       hideLoading();
-      const nextPage = nextTaskPageFromStatus(resumeStatus);
-      window.location.href = nextPage;
+      const idx = nextTaskIndex(resumeData.done, taskOrder, taskEnabled);
+      if(idx<0){ showMsg('✅ This session is already finished. Please start a new one.','success'); return; }
+      window.location.href = TASK_PAGES[idx];
       return;
     }
 
-    // Pre-fetch collocation rows NOW (in parallel with saveRecord) so Task 3/4/5
-    // can start instantly without waiting for the backend again.
-    const collocPromise = api({action:'getWords',series,level,
-      unit_from:from,unit_to:to,half:'all',mode:'all'})
-      .then(r=> (r && r.success) ? r.data : null)
-      .catch(()=>null);
-
-    // Build the word-range string shown in Records, e.g. "1-50".
-    // When a range was picked use it; otherwise it's 1 → total words in the selection.
     let wrFrom, wrTo;
     if(rangeMode==='range'){
       wrFrom = parseInt(document.getElementById('rangeFrom').value)||1;
       wrTo   = parseInt(document.getElementById('rangeTo').value)||task1Words.length;
-    } else {
-      wrFrom = 1;
-      wrTo   = task1Words.length;
-    }
-    const wordRange = wrFrom + '-' + wrTo;
+    } else { wrFrom = 1; wrTo = task1Words.length; }
 
-    const res = await api({
+    const res = await apiPost({
       action:       'saveRecord',
       student_id:   student.student_id||'',
       student_name: student.name||'',
@@ -924,29 +883,10 @@ async function startSession(){
       unit_to:      to,
       half:         'all',
       task:         'T1',
-      word_range:   wordRange,
-      status:       'in_progress'
+      word_range:   wrFrom + '-' + wrTo,
+      status:       'in_progress',
+      resume_data:  JSON.stringify(resumeData)
     });
-
-    // Build Task 3/4/5's word-partner cache from the pre-fetched rows (no extra wait for them later)
-    try{
-      const allRows = await collocPromise;
-      if(allRows && allRows.length){
-        const t1set = new Set(task1Words.map(w=>String(w.word).toLowerCase().trim()));
-        const eligible = allRows.filter(r=>r.collocations && r.collocations.trim() && t1set.has(String(r.word).toLowerCase().trim()));
-        // one random collocation per word
-        const byWord={};
-        eligible.forEach(w=>{const k=String(w.word).toLowerCase().trim();(byWord[k]=byWord[k]||[]).push(w);});
-        let partners=Object.values(byWord).map(rows=>rows[Math.floor(Math.random()*rows.length)]);
-        for(let i=partners.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[partners[i],partners[j]]=[partners[j],partners[i]];}
-        const nP = parseInt(task3Colloc)||20;
-        const chosen = partners.slice(0, Math.min(nP, partners.length));
-        if(chosen.length){
-          sessionStorage.setItem('ds_session_words', JSON.stringify(chosen));
-          sessionStorage.setItem('ds_session_word_ids', chosen.map(w=>w.word_id).join(','));
-        }
-      }
-    }catch(e){ /* if pre-fetch fails, Task 3 will fetch on its own — no harm */ }
 
     if(res.success){
       sessionStorage.setItem('ds_record_id', res.record_id);
@@ -962,9 +902,8 @@ async function startSession(){
   }
 }
 
-// ---- Apply resume data ----
+// ---- OLD session codes only (records made before Version 4) ----
 // Set a <select>'s value by normalized match against its options
-// (handles whitespace/spacing/case differences between the Records sheet and Series_Levels sheet)
 function setSelectTrimmed(selectEl, rawValue){
   const norm = s => String(s||'').replace(/\s+/g,' ').trim().toLowerCase();
   const target = norm(rawValue);
@@ -977,78 +916,44 @@ function setSelectTrimmed(selectEl, rawValue){
 
 async function applyResume(record){
   showMsg('📌 Resuming your previous session...','success');
-  const dbg=[];
 
-  // 1. Series (levels populate synchronously inside onSeriesChange)
   const serSel = document.getElementById('selSeries');
   const seriesVal = record._series||record['Series']||record.series||'';
-  dbg.push('series-opts='+serSel.options.length);
   if(!setSelectTrimmed(serSel, seriesVal)){
-    const available = Array.from(serSel.options).map(o=>'"'+o.value+'"').join(', ');
-    showMsg('⚠️ Series "'+seriesVal+'" not found. Options: '+available+'. Pick manually.','warn');
-    return;
+    showMsg('⚠️ Series "'+seriesVal+'" not found. Please pick your words again.','warn');
+    sessionStorage.removeItem('ds_resume'); return;
   }
   onSeriesChange();
-  dbg.push('series-set='+serSel.value);
 
-  // 2. Level
   const levelSel = document.getElementById('selLevel');
   const levelVal = record._level||record['Level']||record.level||'';
   if(!setSelectTrimmed(levelSel, levelVal)){
-    const available = Array.from(levelSel.options).map(o=>'"'+o.value+'"').join(', ');
-    showMsg('⚠️ Level "'+levelVal+'" not found. Options: '+available+'. Pick manually.','warn');
-    return;
+    showMsg('⚠️ Level "'+levelVal+'" not found. Please pick your words again.','warn');
+    sessionStorage.removeItem('ds_resume'); return;
   }
-  dbg.push('level-set='+levelSel.value);
-
-  // 3. Units — WAIT for them to load (no fragile timeout)
   await onLevelChange();
-  dbg.push('unit-opts='+document.getElementById('selUnitFrom').options.length);
 
   const fromVal = String(record._unit_from||record['Unit_from']||record.unit_from||'').trim();
   const toVal   = String(record._unit_to||record['Unit_to']||record.unit_to||'').trim();
   const fromOk = setSelectTrimmed(document.getElementById('selUnitFrom'), fromVal);
   const toOk   = setSelectTrimmed(document.getElementById('selUnitTo'), toVal);
   if(!fromOk || !toOk){
-    const avail = Array.from(document.getElementById('selUnitFrom').options).map(o=>'"'+o.value+'"').join(', ');
-    showMsg('⚠️ Unit "'+fromVal+'"-"'+toVal+'" not found. Units: '+avail+'. Pick manually. ['+dbg.join('|')+']','warn');
-    return;
+    showMsg('⚠️ Unit '+fromVal+'–'+toVal+' not found. Please pick your units again.','warn');
+    sessionStorage.removeItem('ds_resume'); return;
   }
+  onUnitChange();   // instant now — word count is ready immediately
 
-  selectedHalf = String(record._half||record['Half']||record.half||'all').trim();
-  await onUnitChange();
   const rid = record._record_id||record['Record ID']||record.record_id||'';
   sessionStorage.setItem('ds_record_id', rid);
   resumeRecordId = rid;
-  // Read progress from several possible sources, so resume works even if the backend
-  // didn't return the _status alias (e.g. Code.gs not redeployed yet).
-  let st = String(record._status||record['Status']||record.status||'').trim().toLowerCase();
-  // Backup: if status is blank, infer the furthest task from the "Task" column (T1..T5)
-  if(!st){
-    const taskCol = String(record._task||record['Task']||record.task||'').trim().toUpperCase();
-    const taskToStatus={T1:'spell_storm_done',T2:'spell_storm_done',T3:'pair_drop_done',T4:'mind_check_done',T5:'word_detective_done'};
-    st = taskToStatus[taskCol] || '';
-  }
-  resumeStatus = st;
+  resumeDone = doneFromStatus(record._status||record['Status']||record.status||'');
   sessionStorage.removeItem('ds_resume');
 
-  // Re-assert the values now AND again shortly after, in case a late async handler
-  // (e.g. word-count refresh) resets any dropdown on a slower device.
-  const reassert=()=>{
-    setSelectTrimmed(serSel, seriesVal);
-    setSelectTrimmed(levelSel, levelVal);
-    setSelectTrimmed(document.getElementById('selUnitFrom'), fromVal);
-    setSelectTrimmed(document.getElementById('selUnitTo'), toVal);
-    document.getElementById('btnStart').disabled = false;
-  };
-  reassert();
-  setTimeout(reassert, 600);
-  setTimeout(reassert, 1500);
-
-  const nextLabel = nextTaskLabelFromStatus(resumeStatus);
-  document.getElementById('btnStart').innerHTML = '▶ Continue to ' + nextLabel;
+  const idx = nextTaskIndex(resumeDone, taskOrder, taskEnabled);
+  const label = idx>=0 ? TASKS[idx].name : 'finish';
+  document.getElementById('btnStart').innerHTML = '▶ Continue to ' + label;
   document.getElementById('btnStart').disabled = false;
-  showMsg('✅ Resumed! Press the green button to continue to ' + nextLabel + '.','success');
+  showMsg('✅ Resumed! Check the word range, then press the green button to continue to ' + label + '.','success');
 }
 
 // ---- Lock back navigation ----

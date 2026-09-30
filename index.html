@@ -6,6 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap">
 <title>Dictation System</title>
 <style>
 /* === Kiosk / full-screen lockdown (for Jamf Single App Mode) === */
@@ -25,7 +28,6 @@ input,textarea,select{
 html,body{-ms-overflow-style:none;scrollbar-width:none;}
 /* (scroll-blocking rules removed — scrolling must work normally on phones too) */
 
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 :root {
   --g1:#1E5C1E; --g2:#2D7D2D; --g3:#4A9A3A; --g4:#6AAF45; --g5:#8DC63F; --g6:#C5E8A0; --g7:#EAF7D8;
   --white:#FFFFFF; --text:#1A3A1A; --muted:#5A7A5A; --border:#C8E6B0;
@@ -203,6 +205,7 @@ html,body{min-height:100vh;min-height:100dvh;font-family:'Nunito',sans-serif;bac
 
 <script>
 const API='https://script.google.com/macros/s/AKfycbw76QSB-lv4pA-6s_m6vNk_oGEdeLqrsqkoBGu6j-XMulb-maiAGkqqhfqqEmGfcbn3Ow/exec';
+const TASK_PAGES=['task1.html','task2.html','task3.html','task4.html','task5.html'];
 let allStudents=[];
 
 (function(){
@@ -226,6 +229,12 @@ function showMsg(id,text,type){const el=document.getElementById(id);el.textConte
 function showLoading(t){document.getElementById('overlayText').textContent=t||'Loading...';document.getElementById('overlay').classList.add('show');}
 function hideLoading(){document.getElementById('overlay').classList.remove('show');}
 async function api(p){const q=new URLSearchParams(p).toString();const r=await fetch(API+'?'+q);return r.json();}
+
+// Remove everything from the previous student on this iPad (keep config + series list)
+function clearSession(){
+  const keep=['ds_config','ds_series_levels'];
+  Object.keys(sessionStorage).forEach(k=>{ if(k.indexOf('ds_')===0 && keep.indexOf(k)<0) sessionStorage.removeItem(k); });
+}
 
 async function loadStudents(){
   try{const d=await api({action:'getStudents'});if(d.success)allStudents=d.data;else allStudents=[];}
@@ -258,10 +267,8 @@ async function loginZPS(){
   if(!sel.value){showMsg('msg-zps','Please select your name.','error');return;}
   const student=JSON.parse(sel.value);
   student.school_type='ZPS';student.language='zh';
+  clearSession();
   sessionStorage.setItem('ds_student',JSON.stringify(student));
-  showLoading('Getting your session ready...');
-  await new Promise(r=>setTimeout(r,500));
-  hideLoading();
   window.location.href='setup.html';
 }
 
@@ -271,47 +278,111 @@ async function loginGuest(){
   showLoading('Setting up your session...');
   try{
     const d=await api({action:'loginStudent',name,guest:'true'});
-    if(d.success){sessionStorage.setItem('ds_student',JSON.stringify(d.student));hideLoading();window.location.href='setup.html';}
+    if(d.success){clearSession();sessionStorage.setItem('ds_student',JSON.stringify(d.student));hideLoading();window.location.href='setup.html';}
     else{hideLoading();showMsg('msg-guest',d.error||'Something went wrong.','error');}
   }catch(e){hideLoading();showMsg('msg-guest','Connection error. Please try again.','error');}
 }
 
-async function resumeSession(){
-  const code=document.getElementById('resumeCode').value.trim().toUpperCase();
-  if(!code){showMsg('msg-resume','Please enter your session code.','error');return;}
-  showLoading('Finding your session...');
-  try{
-    const d=await api({action:'getRecord',record_id:code});
-    if(d.success){
-      sessionStorage.setItem('ds_resume',JSON.stringify(d.data));
-      // CRITICAL: also restore ds_student, or setup.html will bounce back to this screen
-      // (it requires a logged-in student before it will read ds_resume)
-      const rec=d.data;
-      const studentName = rec._student_name||rec['Student Name']||rec['Name']||rec.student_name||rec.name||'';
-      const studentId    = rec._student_id||rec['Student ID']||rec['Student_ID']||rec.student_id||'';
-      const studentClass = rec._class||rec['Class']||rec.class||'';
-      const studentTeacher = rec._teacher||rec['Teacher']||rec['EL Teacher']||rec.teacher||'';
-      sessionStorage.setItem('ds_student', JSON.stringify({
-        name: studentName,
-        student_id: studentId,
-        class: studentClass,
-        teacher: studentTeacher,
-        school_type: studentTeacher ? 'ZPS' : 'guest',
-        language: 'zh'
-      }));
-      hideLoading();window.location.href='setup.html';
-    }
-    else{hideLoading();showMsg('msg-resume','Session code not found. Check and try again.','error');}
-  }catch(e){hideLoading();showMsg('msg-resume','Connection error. Please try again.','error');}
+// ===== RESUME =====
+// Accepts "ss 2609 0042", "SS26090042", letter O instead of zero, etc. → "SS-2609-0042"
+function normalizeCode(raw){
+  let s=String(raw||'').toUpperCase().replace(/\s+/g,'');
+  const m=s.match(/^([A-Z]{2})-?([0-9O]{4})-?([0-9O]+)$/);
+  if(m) s=m[1]+'-'+m[2].replace(/O/g,'0')+'-'+m[3].replace(/O/g,'0');
+  return s;
+}
+function expandLevel(ld){
+  const cols=ld.cols||[];
+  return (ld.rows||[]).map(r=>{ const o={}; cols.forEach((c,i)=>{ o[c]=(r[i]===undefined||r[i]===null)?'':String(r[i]); }); return o; });
+}
+// First enabled task not finished yet (Word Hunt is skipped). -1 = everything finished.
+function nextTaskIndex(done, order, enabled){
+  const d=new Set((done||[]).map(Number));
+  const ord=(Array.isArray(order)&&order.length)?order:[0,1,2,3,4];
+  const en=Array.isArray(enabled)?enabled:[true,true,true,true,true];
+  for(const idx of ord){ if(idx===1) continue; if(en[idx] && !d.has(idx)) return idx; }
+  return -1;
+}
+// Rebuild the exact same session (same words, same word partners, same questions)
+// Returns: task index to go to, -1 if finished, or null if it can't be rebuilt
+function restoreFromResume(rec, level){
+  const rd=rec._resume;
+  const byId={};
+  expandLevel(level).forEach(w=>{ if(w.word_id) byId[w.word_id]=w; });
+  const pick=ids=>(Array.isArray(ids)?ids:[]).map(id=>byId[String(id)]).filter(Boolean);
+  const t1=pick(rd.t1);
+  if(!t1.length) return null;
+  const sp=pick(rd.sp), qz=pick(rd.qz);
+
+  sessionStorage.setItem('ds_setup',JSON.stringify(rd.setup));
+  sessionStorage.setItem('ds_task1_words',JSON.stringify(t1));
+  sessionStorage.setItem('ds_words',JSON.stringify(t1));
+  if(sp.length){
+    sessionStorage.setItem('ds_session_words',JSON.stringify(sp));
+    sessionStorage.setItem('ds_session_word_ids',sp.map(w=>w.word_id).join(','));
+  }
+  if(qz.length) sessionStorage.setItem('ds_quiz_words',JSON.stringify(qz));
+  sessionStorage.setItem('ds_display_mode', rd.dm || 'el');
+  sessionStorage.setItem('ds_record_id', String(rec._record_id));
+  return nextTaskIndex(rd.done, rd.setup.task_order, rd.setup.task_enabled);
 }
 
+async function resumeSession(){
+  const code=normalizeCode(document.getElementById('resumeCode').value);
+  if(!code){showMsg('msg-resume','Please enter your session code.','error');return;}
+  document.getElementById('resumeCode').value=code;
+  showLoading('Finding your session...');
+  try{
+    const [d]=await Promise.all([ api({action:'getResume',record_id:code}), configReady ]);
+    if(!d.success){
+      hideLoading();
+      showMsg('msg-resume','Session code "'+code+'" not found. Check and try again.','error');
+      return;
+    }
+    const rec=d.data;
+    clearSession();
+    const teacher=String(rec._teacher||'');
+    sessionStorage.setItem('ds_student', JSON.stringify({
+      name:        String(rec._student_name||''),
+      student_id:  String(rec._student_id||''),
+      class:       String(rec._class||''),
+      teacher:     teacher,
+      school_type: teacher ? 'ZPS' : 'Guest',
+      language:    'zh'
+    }));
+
+    // New sessions (Version 4+): jump straight back into the next unfinished task
+    if(rec._resume && d.level){
+      const idx=restoreFromResume(rec, d.level);
+      if(idx===-1){
+        hideLoading();
+        showMsg('msg-resume','✅ This session is already finished! Please start a new one.','success');
+        return;
+      }
+      if(idx!==null){ window.location.href=TASK_PAGES[idx]; return; }
+    }
+
+    // Older sessions: go through the setup page (words are picked again from the saved units)
+    sessionStorage.setItem('ds_resume',JSON.stringify(rec));
+    hideLoading();
+    window.location.href='setup.html';
+  }catch(e){hideLoading();showMsg('msg-resume','Connection error. Please try again.','error');}
+}
+document.getElementById('resumeCode').addEventListener('keydown',e=>{ if(e.key==='Enter') resumeSession(); });
+
 async function loadConfig(){
-  try{const d=await api({action:'getConfig'});if(d.success&&d.data.app_name){document.getElementById('appName').textContent=d.data.app_name;document.title=d.data.app_name;sessionStorage.setItem('ds_config',JSON.stringify(d.data));}}catch(e){}
+  try{
+    const d=await api({action:'getConfig'});
+    if(d.success){
+      sessionStorage.setItem('ds_config',JSON.stringify(d.data));
+      if(d.data.app_name){document.getElementById('appName').textContent=d.data.app_name;document.title=d.data.app_name;}
+    }
+  }catch(e){}
 }
 
 history.pushState(null,'',location.href);
 window.addEventListener('popstate',()=>history.pushState(null,'',location.href));
-loadConfig();
+const configReady=loadConfig();
 loadStudents();
 </script>
 <script>

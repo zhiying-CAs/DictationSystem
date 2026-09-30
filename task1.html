@@ -6,6 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap">
 <title>Spell Storm ⚡</title>
 <style>
 /* === Kiosk / full-screen lockdown (for Jamf Single App Mode) === */
@@ -25,7 +28,6 @@ input,textarea,select{
 html,body{-ms-overflow-style:none;scrollbar-width:none;overscroll-behavior:none;overscroll-behavior-x:none;}
 /* (scroll-blocking rules removed — scrolling must work normally on phones too) */
 
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 :root {
   --g1:#1E5C1E;--g2:#2D7D2D;--g3:#4A9A3A;--g4:#6AAF45;--g5:#8DC63F;--g6:#C5E8A0;--g7:#EAF7D8;
   --white:#FFFFFF;--text:#1A3A1A;--muted:#5A7A5A;--border:#C8E6B0;
@@ -385,7 +387,7 @@ async function uPauseExit(){
 // Teacher skips this task (PIN already verified). Mark skipped, go to next task.
 async function uSkipTask(){
   try{ if(typeof stopTenseMusic==='function')stopTenseMusic(); if(typeof stopBgMusic==='function')stopBgMusic(); }catch(e){}
-  try{const q=new URLSearchParams({action:'updateRecord',record_id:(window.recordId||sessionStorage.getItem('ds_record_id')||''),status:'spell_storm_skipped'}).toString();await fetch(API+'?'+q, {keepalive:true});}catch(e){}
+  try{const q=new URLSearchParams({action:'updateRecord',record_id:(window.recordId||sessionStorage.getItem('ds_record_id')||''),status:'spell_storm_skipped',done_task:'0'}).toString();await fetch(API+'?'+q, {keepalive:true});}catch(e){}
   document.getElementById('uExitChoice').classList.remove('show');
   goNextTask();
 }
@@ -496,6 +498,8 @@ let _audioUnlocked = false;
 
   buildLangGrid();
   buildModeLangGrid();
+  // Start preparing the first words' audio now, while the student picks a language
+  words.slice(0,2).forEach(w=>{ if(!w.audio_file) fetchTTS(w.word); });
   hideLoading();
   // Show display-mode picker (teacher's default pre-selected, student can change)
   await showDisplayModeModal();
@@ -569,6 +573,8 @@ function confirmDisplayMode(){
   displayMode = (modeLangSelection !== null) ? modeLangSelection : 'el';
   // Save so Task 3 flashcards show the same language the student chose here
   try{ sessionStorage.setItem('ds_display_mode', displayMode); }catch(e){}
+  // Remember the language choice in the record too, so a resumed session uses it
+  try{ api({action:'updateRecord',record_id:recordId,resume_patch:JSON.stringify({dm:displayMode})}).catch(()=>{}); }catch(e){}
   // Unlock audio for iOS/iPad (must happen inside this real user tap, or iOS blocks all playback)
   unlockAudio();
   document.getElementById('modeModal').classList.remove('show');
@@ -628,8 +634,8 @@ function showWord(idx){
   const w = words[idx];
 
   // Prefetch next word's audio in background (so it's ready & consistent)
-  if(idx+1 < words.length && !words[idx+1].audio_file){
-    fetchTTS(words[idx+1].word);
+  for(let k=idx+1; k<=idx+2 && k<words.length; k++){
+    if(!words[k].audio_file) fetchTTS(words[k].word);
   }
 
   // Progress
@@ -792,16 +798,28 @@ async function playAudio(w){
   });
 }
 
-// Pre-fetch and cache TTS audio URL for a word (returns blob URL or null)
-async function fetchTTS(word){
-  if(ttsCache[word]) return ttsCache[word];
+// Pre-fetch and cache TTS audio URL for a word (returns blob URL or null).
+// If the same word is already being fetched (e.g. prefetch), reuse that request instead of asking Gemini twice.
+const ttsInflight = {};
+function fetchTTS(word){
+  if(ttsCache[word]) return Promise.resolve(ttsCache[word]);
+  if(ttsInflight[word]) return ttsInflight[word];
+  const p = fetchTTSNow(word).then(url=>{ delete ttsInflight[word]; if(url) ttsCache[word]=url; return url; });
+  ttsInflight[word] = p;
+  return p;
+}
+async function fetchTTSNow(word){
   const voice = config.gemini_voice || 'Zephyr';
   const key   = config.gemini_api_key || geminiKey;
   if(!key) return null;
+  // Give up after 8 seconds and use the iPad's own voice instead of making the student wait
+  const ctrl  = (typeof AbortController!=='undefined') ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(()=>ctrl.abort(), 8000) : null;
   try {
     const prompt = `You are a warm, friendly primary school English teacher reading a spelling word aloud to a young learner. Say the single word "${word}" clearly, slowly, and gently, with natural human warmth — pronounce it the way a kind teacher would when helping a child spell it. Say only the word, nothing else.`;
     const resp = await fetch(`${GEMINI_API_BASE}?key=${key}`,{
       method:'POST', headers:{'Content-Type':'application/json'},
+      signal: ctrl ? ctrl.signal : undefined,
       body: JSON.stringify({
         contents:[{parts:[{text:prompt}]}],
         generationConfig:{responseModalities:['AUDIO'],
@@ -814,10 +832,9 @@ async function fetchTTS(word){
     const binary=atob(b64); const bytes=new Uint8Array(binary.length);
     for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
     const wav=pcmToWav(bytes,24000,1,16);
-    const url=URL.createObjectURL(new Blob([wav],{type:'audio/wav'}));
-    ttsCache[word]=url;
-    return url;
+    return URL.createObjectURL(new Blob([wav],{type:'audio/wav'}));
   } catch(e){ return null; }
+  finally { if(timer) clearTimeout(timer); }
 }
 
 async function playTTSPromise(word){
@@ -893,7 +910,7 @@ function togglePause(){
 function showResult(){
   // Save words tested to sheet
   const wordIds = words.map(w=>w.word_id).join(',');
-  api({action:'updateRecord', record_id:recordId, words_tested:wordIds, status:'spell_storm_done'});
+  api({action:'updateRecord', record_id:recordId, words_tested:wordIds, status:'spell_storm_done', done_task:'0'}).catch(()=>{});
 
   // Show result screen
   document.getElementById('resultScreen').classList.add('show');

@@ -6,6 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap">
 <title>Mind Check 🧠</title>
 <style>
 /* === Kiosk / full-screen lockdown (for Jamf Single App Mode) === */
@@ -25,7 +28,6 @@ input,textarea,select{
 html,body{-ms-overflow-style:none;scrollbar-width:none;overscroll-behavior:none;overscroll-behavior-x:none;}
 /* (scroll-blocking rules removed — scrolling must work normally on phones too) */
 
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 :root{
   --g1:#1E5C1E;--g2:#2D7D2D;--g3:#4A9A3A;--g4:#6AAF45;--g5:#8DC63F;--g6:#C5E8A0;--g7:#EAF7D8;
   --white:#FFFFFF;--text:#1A3A1A;--muted:#5A7A5A;--border:#C8E6B0;
@@ -457,7 +459,7 @@ function showResult(){
     score:score+'/'+total,
     wrong_words:answers.filter(a=>!a.isCorrect).map(a=>a.word.word_id).join(','),
     task4_results:answers.map(a=>a.word.word_id+':'+(a.isCorrect?'1':'0')).join(' '),
-    ...(passed?{task4_attempts:t4Attempts}:{}),
+    ...(passed?{task4_attempts:t4Attempts, done_task:'3'}:{}),
     status:passed?'mind_check_done':'mind_check_failed'}, true);
 
   const ov=document.getElementById('resultOverlay');ov.classList.add('show');
@@ -751,7 +753,7 @@ async function uPauseExit(){
 }
 // Teacher skips this task (PIN already verified). Mark skipped, go to next task.
 async function uSkipTask(){
-  try{const q=new URLSearchParams({action:'updateRecord',record_id:(window.recordId||sessionStorage.getItem('ds_record_id')||''),status:'mind_check_skipped'}).toString();await fetch(API+'?'+q, {keepalive:true});}catch(e){}
+  try{const q=new URLSearchParams({action:'updateRecord',record_id:(window.recordId||sessionStorage.getItem('ds_record_id')||''),status:'mind_check_skipped',done_task:'3'}).toString();await fetch(API+'?'+q, {keepalive:true});}catch(e){}
   document.getElementById('uExitChoice').classList.remove('show');
   goNext();
 }

@@ -6,6 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap">
 <title>Word Partners 🔗</title>
 <style>
 /* === Kiosk / full-screen lockdown (for Jamf Single App Mode) === */
@@ -25,7 +28,6 @@ input,textarea,select{
 html,body{-ms-overflow-style:none;scrollbar-width:none;overscroll-behavior:none;overscroll-behavior-x:none;}
 /* (scroll-blocking rules removed — scrolling must work normally on phones too) */
 
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 :root{
   --g1:#1E5C1E;--g2:#2D7D2D;--g3:#4A9A3A;--g4:#6AAF45;--g5:#8DC63F;--g6:#C5E8A0;--g7:#EAF7D8;
   --white:#FFFFFF;--text:#1A3A1A;--muted:#5A7A5A;--border:#C8E6B0;
@@ -462,7 +464,7 @@ async function uPauseExit(){
 async function uSkipTask(){
   try{ if(typeof stopTenseMusic==='function')stopTenseMusic(); if(typeof stopBgMusic==='function')stopBgMusic(); }catch(e){}
   gameActive=false;
-  try{const q=new URLSearchParams({action:'updateRecord',record_id:(window.recordId||sessionStorage.getItem('ds_record_id')||''),status:'pair_drop_skipped'}).toString();await fetch(API+'?'+q, {keepalive:true});}catch(e){}
+  try{const q=new URLSearchParams({action:'updateRecord',record_id:(window.recordId||sessionStorage.getItem('ds_record_id')||''),status:'pair_drop_skipped',done_task:'2'}).toString();await fetch(API+'?'+q, {keepalive:true});}catch(e){}
   document.getElementById('uExitChoice').classList.remove('show');
   goNext();
 }
@@ -1056,7 +1058,7 @@ function endGame(passed,reason){
     sessionStorage.setItem('ds_t3_fails', String(parseInt(sessionStorage.getItem('ds_t3_fails')||'0')+1));
   }
   api({action:'updateRecord',record_id:recordId,score:score+'/'+gameWords.length,wrong_words:failedPairs.map(w=>w.word_id).join(','),
-    ...(passed?{task3_attempts:t3Attempts}:{}),
+    ...(passed?{task3_attempts:t3Attempts, done_task:'2'}:{}),
     status:passed?'pair_drop_done':'pair_drop_ended'}, true);
   const ov=document.getElementById('resultOverlay');ov.classList.add('show');
   if(passed){sndWin();bigConfetti();document.getElementById('resultEmoji').textContent='🏆';document.getElementById('resultTitle').textContent='You did it! Amazing!';}
