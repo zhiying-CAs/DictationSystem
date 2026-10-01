@@ -527,6 +527,23 @@ function startTenseMusic(){
 function stopTenseMusic(){if(tenseInterval){clearTimeout(tenseInterval);tenseInterval=null;}}
 
 // ============ TTS for flashcard (cached) ============
+// ===== Voice from the server (Apps Script → Gemini → saved in Google Drive) =====
+// Returns {url, dur} or null (then the page uses the iPad's own voice instead).
+async function serverTTS(kind, text, timeoutMs){
+  const ctrl  = (typeof AbortController!=='undefined') ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(()=>ctrl.abort(), timeoutMs||15000) : null;
+  try{
+    const r = await fetch(API, {method:'POST', body:new URLSearchParams({action:'tts', kind, text}), signal: ctrl?ctrl.signal:undefined});
+    const d = await r.json();
+    if(!d.success || !d.b64) return null;
+    const bin = atob(d.b64); const bytes = new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+    const rate = bytes.length>44 ? (new DataView(bytes.buffer).getUint32(24,true) || 24000) : 24000;
+    return { url: URL.createObjectURL(new Blob([bytes],{type:'audio/wav'})), dur: Math.max(0,(bytes.length-44)/2/rate) };
+  }catch(e){ return null; }
+  finally{ if(timer) clearTimeout(timer); }
+}
+
 function pcmToWav(pcm,sr,ch,bps){const dl=pcm.length;const ba=ch*bps/8;const br=sr*ba;const buf=new ArrayBuffer(44+dl);const v=new DataView(buf);const s=(o,str)=>{for(let i=0;i<str.length;i++)v.setUint8(o+i,str.charCodeAt(i));};s(0,'RIFF');v.setUint32(4,36+dl,true);s(8,'WAVE');s(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,ch,true);v.setUint32(24,sr,true);v.setUint32(28,br,true);v.setUint16(32,ba,true);v.setUint16(34,bps,true);s(36,'data');v.setUint32(40,dl,true);new Uint8Array(buf).set(pcm,44);return buf;}
 
 async function speakPartner(e){
@@ -538,22 +555,8 @@ async function speakPartner(e){
   try{
     let url=audioCache[text];
     if(!url){
-      const key=config.gemini_api_key||'';
-      const voice=config.gemini_voice||'Leda';
-      if(key){
-        const prompt=`You are a warm, friendly primary school English teacher. Read the word partners "${text}" aloud clearly, slowly, and naturally, with gentle human warmth — the way a kind teacher would when teaching a young child how the words sound together. Say only the phrase, nothing else.`;
-        const resp=await fetch(`${GEMINI_API_BASE}?key=${key}`,{method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voice}}}}})});
-        const data=await resp.json();
-        const b64=data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-        if(b64){
-          const bin=atob(b64);const bytes=new Uint8Array(bin.length);
-          for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
-          const wav=pcmToWav(bytes,24000,1,16);
-          url=URL.createObjectURL(new Blob([wav],{type:'audio/wav'}));
-          audioCache[text]=url;
-        }
-      }
+      const r=await serverTTS('phrase',text,15000);
+      if(r){ url=r.url; audioCache[text]=url; }
     }
     if(url){const a=new Audio(url);a.onended=()=>btn.classList.remove('playing');await a.play();}
     else{webSpeak(text,btn);}
