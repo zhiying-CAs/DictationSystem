@@ -81,6 +81,8 @@ body{display:flex;flex-direction:column;}
 @keyframes speakPulse{0%,100%{box-shadow:0 4px 16px rgba(45,125,45,0.3);}50%{box-shadow:0 4px 32px rgba(45,125,45,0.6);transform:scale(1.06);}}
 
 .tap-hint{font-size:12px;color:var(--muted);font-weight:600;margin-top:8px;}
+.tap-hint.countdown{font-size:14px;font-weight:800;color:var(--g2);background:var(--g7);border:1.5px solid var(--border);border-radius:14px;padding:6px 14px;cursor:pointer;}
+.tap-hint.countdown.held{color:#92400E;background:#FEF3C7;border-color:var(--amber);}
 
 /* Definition area */
 .def-area{width:100%;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
@@ -307,7 +309,7 @@ body{display:flex;flex-direction:column;}
     <div class="word-num" id="wordNum">Word 1</div>
 
     <button class="speaker-btn" id="speakerBtn" onclick="playCurrentWord()">🔊</button>
-    <div class="tap-hint" id="tapHint"></div>
+    <div class="tap-hint" id="tapHint" onclick="toggleHoldCountdown()"></div>
 
     <!-- Definition (shown if teacher enabled) -->
     <div class="def-area" id="defArea" style="display:none">
@@ -425,6 +427,10 @@ let exitTarget   = 'task';
 let repeatCount  = 3;
 let currentRepeat = 0;
 let autoTimer    = null;
+let autoNextSecs = 6;     // seconds to write the word before moving on automatically (0 = off). Config: task1_auto_next_seconds
+let countdownTimer = null;
+let countdownHeld  = false;
+let playToken    = 0;     // makes sure an old play-cycle never moves the page on by mistake
 let displayMode  = null; // 'el' or lang code (zh, ms, id, vi, th, my, km, bn) — chosen once, applies to every word
 let modeLangSelection = null;
 let _audioUnlocked = false;
@@ -455,6 +461,8 @@ let _audioUnlocked = false;
 
   // Read teacher settings
   repeatCount = parseInt(setup.repeat_count) || 3;
+  const ans = parseInt(config.task1_auto_next_seconds);
+  if(!isNaN(ans) && ans >= 0) autoNextSecs = ans;
 
   // Load words — use the EXACT list chosen in setup (already filtered + ordered)
   try {
@@ -629,7 +637,7 @@ function showWord(idx){
   if(idx < 0 || idx >= words.length) return;
   currentIdx    = idx;
   currentRepeat = 0;
-  if(autoTimer){ clearTimeout(autoTimer); autoTimer=null; }
+  stopTimers();
   const w = words[idx];
 
   // Prefetch next word's audio in background (so it's ready & consistent)
@@ -740,21 +748,31 @@ function selectLang(code, el){
 }
 
 // ---- Audio playback with repeat & auto-advance ----
-async function playCurrentWord(){
-  if(isPaused) return;
-  currentRepeat = 0;
-  await playWordCycle();
+function stopTimers(){
+  if(autoTimer){ clearTimeout(autoTimer); autoTimer=null; }
+  if(countdownTimer){ clearInterval(countdownTimer); countdownTimer=null; }
+  countdownHeld = false;
+  const tap = document.getElementById('tapHint');
+  if(tap){ tap.classList.remove('countdown','held'); }
 }
 
-async function playWordCycle(){
+async function playCurrentWord(){
   if(isPaused) return;
+  stopTimers();
+  currentRepeat = 0;
+  const token = ++playToken;
+  await playWordCycle(token);
+}
+
+async function playWordCycle(token){
+  if(isPaused || token !== playToken) return;
   currentRepeat++;
   const w   = words[currentIdx];
   const btn = document.getElementById('speakerBtn');
 
   // Update repeat counter display
-  const tap = document.querySelector('.tap-hint');
-  if(tap) tap.textContent = `🔊 ${currentRepeat} / ${repeatCount}`;
+  const tap = document.getElementById('tapHint');
+  if(tap){ tap.classList.remove('countdown','held'); tap.textContent = `🔊 ${currentRepeat} / ${repeatCount}`; }
 
   btn.classList.add('playing');
   document.getElementById('wordCard').classList.add('playing');
@@ -766,15 +784,55 @@ async function playWordCycle(){
   btn.classList.remove('playing');
   document.getElementById('wordCard').classList.remove('playing');
 
-  if(isPaused) return;
+  if(isPaused || token !== playToken) return;   // student pressed Prev / Next / Listen again meanwhile
 
   if(currentRepeat < repeatCount){
     // Wait 1.5s then play again
-    autoTimer = setTimeout(()=> playWordCycle(), 1500);
+    autoTimer = setTimeout(()=> playWordCycle(token), 1500);
+  } else if(autoNextSecs > 0){
+    startAutoNext(token);    // give time to write, then go to the next word by itself
   } else {
-    // All 3 reads done — STOP. Student uses the buttons below. Keep it clean (no text).
-    const tap = document.querySelector('.tap-hint');
     if(tap) tap.textContent = '';
+  }
+}
+
+// Countdown after the last read: "Next word in 6s". Tap it to hold (more time), tap again to continue.
+function startAutoNext(token){
+  const tap = document.getElementById('tapHint');
+  let left = autoNextSecs;
+  countdownHeld = false;
+  const isLast = currentIdx >= words.length - 1;
+  const render = ()=>{
+    if(!tap) return;
+    tap.classList.add('countdown');
+    tap.classList.toggle('held', countdownHeld);
+    tap.textContent = countdownHeld
+      ? '⏸ Waiting — tap to continue'
+      : (isLast ? '🏁 Finishing in ' : '⏭ Next word in ') + left + 's  · tap to wait';
+  };
+  render();
+  countdownTimer = setInterval(()=>{
+    if(token !== playToken){ clearInterval(countdownTimer); countdownTimer=null; return; }
+    // Don't count down while the teacher PIN box is open, or while held
+    const exitOpen = document.getElementById('uExitChoice')?.classList.contains('show');
+    if(countdownHeld || exitOpen || isPaused){ render(); return; }
+    left--;
+    if(left <= 0){
+      clearInterval(countdownTimer); countdownTimer=null;
+      if(tap){ tap.classList.remove('countdown','held'); tap.textContent=''; }
+      nextWord();
+      return;
+    }
+    render();
+  }, 1000);
+}
+function toggleHoldCountdown(){
+  if(!countdownTimer) return;
+  countdownHeld = !countdownHeld;
+  const tap = document.getElementById('tapHint');
+  if(tap){
+    tap.classList.toggle('held', countdownHeld);
+    if(countdownHeld) tap.textContent = '⏸ Waiting — tap to continue';
   }
 }
 
@@ -874,11 +932,11 @@ function pcmToWav(pcmData,sampleRate,numChannels,bitsPerSample){
 
 // ---- Navigation ----
 function prevWord(){
-  if(autoTimer){ clearTimeout(autoTimer); autoTimer=null; }
+  stopTimers(); playToken++;
   if(currentIdx > 0){ showWord(currentIdx-1); setTimeout(()=>playCurrentWord(),400); }
 }
 function nextWord(){
-  if(autoTimer){ clearTimeout(autoTimer); autoTimer=null; }
+  stopTimers(); playToken++;
   if(currentIdx < words.length-1){ showWord(currentIdx+1); setTimeout(()=>playCurrentWord(),400); }
   else showResult();
 }
@@ -889,7 +947,7 @@ function togglePause(){
   document.getElementById('pausedBadge').classList.toggle('show', isPaused);
   if(isPaused){
     speechSynthesis.cancel();
-    if(autoTimer){ clearTimeout(autoTimer); autoTimer=null; }
+    stopTimers(); playToken++;
     const tap = document.querySelector('.tap-hint');
     if(tap) tap.textContent = '⏸ Paused — tap Resume to continue';
   } else {
@@ -900,6 +958,7 @@ function togglePause(){
 
 // ---- Result ----
 function showResult(){
+  stopTimers(); playToken++;
   // Save words tested to sheet
   const wordIds = words.map(w=>w.word_id).join(',');
   api({action:'updateRecord', record_id:recordId, words_tested:wordIds, status:'spell_storm_done', done_task:'0'}).catch(()=>{});
@@ -917,11 +976,12 @@ function showResult(){
 
 // Student chose to listen again — restart the SAME Task 1 workflow from word 1.
 function relistenFromStart(){
-  if(autoTimer){ clearTimeout(autoTimer); autoTimer=null; }
+  stopTimers(); playToken++;
   document.getElementById('resultScreen').classList.remove('show');
   currentIdx = 0;
   currentRepeat = 0;
   showWord(0);   // same original flow: shows word 1, student listens & spells again
+  setTimeout(()=>playCurrentWord(), 400);
 }
 
 function getNextTask(){
