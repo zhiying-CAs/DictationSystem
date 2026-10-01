@@ -499,7 +499,8 @@ let _audioUnlocked = false;
   buildLangGrid();
   buildModeLangGrid();
   // Start preparing the first words' audio now, while the student picks a language
-  words.slice(0,2).forEach(w=>{ if(!w.audio_file) fetchTTS(w.word); });
+  // (setTimeout = wait until the whole page script has loaded, otherwise ttsCache isn't ready yet)
+  setTimeout(()=>{ try{ words.slice(0,2).forEach(w=>{ if(!w.audio_file) fetchTTS(w.word); }); }catch(e){} }, 0);
   hideLoading();
   // Show display-mode picker (teacher's default pre-selected, student can change)
   await showDisplayModeModal();
